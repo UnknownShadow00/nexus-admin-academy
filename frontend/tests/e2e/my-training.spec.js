@@ -337,6 +337,7 @@ test("admin can open Curriculum Structure under Learning Content", async ({ page
   await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole("navigation", { name: "All navigation" })).toHaveCount(0);
   // Let StrictMode's duplicate initial data requests settle before logout
   // revokes the shared admin session cookie. Otherwise a request can cross
   // the logout boundary and produce a harmless but noisy 403 in the console.

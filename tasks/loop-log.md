@@ -3022,3 +3022,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/question-import.spec.js, frontend/tests/e2e/weeks-1-4-quality.spec.js, tasks/loop-log.md.
 - Result: PASS for in-scope test alignment — 13 affected Playwright tests list successfully and git diff --check passes. The preceding CI run passed forced-password rotation and the learner desktop/mobile tests, then timed out at my-training.spec.js line 308 waiting for the obsolete menuitem role; destination and content assertions remain.
 - Next: Push this fix, wait for the next CI run, inspect all jobs and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:13:07 UTC] Task Completed
+- Task: Fixed a real responsive shell defect found by PR #53 CI: the admin mobile drawer stayed open after resizing to desktop and blocked the sign-out control.
+- Files changed: frontend/src/App.jsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS — the drawer now closes when the matching desktop breakpoint is reached and moves focus from the drawer to the brand link. Focused disposable browser UAT verified the drawer detaches, focus moves, and Admin Sign Out works after a 375-to-1440px resize; 180 frontend tests pass across 38 files. The CI failure was my-training.spec.js line 344, where the still-open drawer intercepted the sign-out click.
+- Next: Push the fix, inspect the new CI run and review threads, and leave PR #53 unmerged.

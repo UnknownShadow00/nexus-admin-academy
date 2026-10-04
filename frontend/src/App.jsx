@@ -244,6 +244,7 @@ export default function App() {
   const accountAnchor = useRef(null);
   const accountButton = useRef(null);
   const accountPanel = useRef(null);
+  const brandLink = useRef(null);
   const menuButton = useRef(null);
   const menuPanel = useRef(null);
   const showChrome = (authenticated && !isAdminRoute && !passwordChangeRequired) || (isAdminRoute && adminAuthenticated);
@@ -284,6 +285,18 @@ export default function App() {
   useEffect(() => { if (searchOpen) searchInput.current?.focus(); }, [searchOpen]);
   useEffect(() => { if (accountOpen) accountPanel.current?.querySelector("button")?.focus(); }, [accountOpen]);
   useEffect(() => { if (mobileOpen) menuPanel.current?.querySelector("a, button")?.focus(); }, [mobileOpen]);
+
+  useEffect(() => {
+    const desktop = window.matchMedia(isAdminRoute ? "(min-width: 1440px)" : "(min-width: 1280px)");
+    const closeOnDesktop = () => {
+      if (!desktop.matches || !menuPanel.current) return;
+      if (menuPanel.current.contains(document.activeElement)) brandLink.current?.focus();
+      setMobileOpen(false);
+    };
+    closeOnDesktop();
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, [isAdminRoute]);
 
   useEffect(() => {
     if (!searchOpen && !accountOpen) return undefined;
@@ -333,7 +346,7 @@ export default function App() {
       {showChrome ? <>
         <header className={`app-header${isAdminRoute ? " app-header-admin" : ""}`}>
           <div className="app-header-inner">
-            <Link className="app-brand" to={isAdminRoute ? "/admin" : "/"} aria-label="Nexus Admin Academy home">
+            <Link ref={brandLink} className="app-brand" to={isAdminRoute ? "/admin" : "/"} aria-label="Nexus Admin Academy home">
               <span className="app-brand-mark" aria-hidden="true">N</span>
               <span><span className="app-brand-title">Nexus</span><span className="app-brand-subtitle">Admin Academy</span></span>
             </Link>
