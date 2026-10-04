@@ -113,7 +113,8 @@ test("forced first-login rotation and admin reset preserve beginner progress", a
     await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
     await expect(page.getByRole("button", { name: "Orientation complete", exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: "Disposable Password Rotation Student" }).click();
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     // The temporary credential is dead; the chosen password works.
@@ -121,7 +122,8 @@ test("forced first-login rotation and admin reset preserve beginner progress", a
     await expect(page.getByRole("alert")).toContainText("Invalid credentials");
     await login(page, username, permanentPassword);
     await expect(page).toHaveURL(/\/$/);
-    await page.getByRole("button", { name: "Disposable Password Rotation Student" }).click();
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Sign out" }).click();
 
     // An admin reset forces another rotation without deleting progress.
     await adminLogin(page);

@@ -3010,3 +3010,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/v2-copy-shell.spec.js, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
 - Result: PASS — both modified specs list successfully (7 tests), and existing assertions for navigation visibility and logout remain. The prior isolated integration run still requires a separate Service Desk runtime; focused browser shell UAT passed.
 - Next: Push this in-scope test update, inspect the new GitHub CI run and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:03:19 UTC] Task Completed
+- Task: Fixed PR #53 Playwright failure caused by tests targeting the removed direct learner sign-out button; updated all remaining learner logout checks to use Account menu then Sign out.
+- Files changed: frontend/tests/e2e/forced-password-change.spec.js, frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/v2-student-experience.spec.js, tasks/loop-log.md.
+- Result: PASS for in-scope test alignment — the first CI Playwright run timed out at forced-password-change.spec.js line 116 on the obsolete direct student-name button, then cleanup failed after the browser timed out. All four affected Playwright specs list successfully (9 tests); logout and protected-route assertions remain. No production or product-code changes in this follow-up.
+- Next: Push the test fix, wait for the new CI run, inspect all jobs and review threads, and leave PR #53 unmerged.

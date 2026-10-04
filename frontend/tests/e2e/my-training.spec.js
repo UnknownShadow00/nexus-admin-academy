@@ -119,7 +119,8 @@ test("student authentication rejects invalid credentials and protects private ro
   await expect(page).toHaveURL(/\/skills$/);
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/skills");
   await expect(page).toHaveURL(/\/login$/);
@@ -290,7 +291,8 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   // report a 401 even though the protected-route behavior is correct.
   await page.waitForLoadState("networkidle");
   monitor.pause();
-  await page.getByRole("button", { name: "Fresh Progression Student A" }).click();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
   expect(monitor.consoleErrors).toEqual([]);
@@ -555,7 +557,8 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(page.getByText(/Endpoint Foundations — Support Workflow Essentials/).first()).toBeVisible();
 
     monitor.pause();
-    await page.getByRole("button", { name: "Disposable Browser Flow Student" }).click();
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await studentLogin(page, username, permanentPassword);
     monitor.resume();
