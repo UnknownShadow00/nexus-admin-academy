@@ -35,7 +35,7 @@ test("authenticated student can use the live V2 shell and durable activity surfa
   await page.getByRole("button", { name: "I finished this" }).click();
   await page.getByRole("button", { name: "Mark lesson complete" }).click();
   await page.reload();
-  await expect(page.getByText("Completed").first()).toBeVisible();
+  await expect(page.getByText("Done", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/ipconfig/).first()).toBeVisible();
   await page.screenshot({ path: "/tmp/nexus-v2-lesson-desktop.png", fullPage: true });
 
@@ -58,7 +58,7 @@ test("authenticated student can use the live V2 shell and durable activity surfa
   }
   await page.getByRole("button", { name: "Submit answers" }).click();
   await page.getByRole("button", { name: "Submit anyway" }).click();
-  await expect(page.getByRole("heading", { name: "Not passed yet" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Not quite" })).toBeVisible();
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
   await page.getByRole("link", { name: "Back to module" }).click();
@@ -106,7 +106,7 @@ test("authenticated student can use the live V2 shell and durable activity surfa
 
   await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration");
   await expect(page.getByText("1 / 5")).toBeVisible();
-  await expect(page.getByText("Completed").first()).toBeVisible();
+  await expect(page.getByText("Done", { exact: true }).first()).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
