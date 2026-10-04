@@ -104,6 +104,12 @@ the student's evidence. Versioned `v2_interaction_definitions` are shared
 authored content and remain available for other students and historical
 attempts.
 
+### Revision 0076 addendum
+
+`v2_beginner_continuation_grants` is student owned and is included in the
+explicit deletion map. Its student foreign key also cascades deletion;
+certification modules remain shared curriculum records.
+
 ### Revision 0071 addendum
 
 Forced first-login password rotation adds `student_auth_states` as an optional

@@ -13,7 +13,7 @@ from app.models.student import Student
 from app.services.v2_access import (
     V2_UNAVAILABLE_DETAIL, require_v2_student_access, student_has_v2_access,
 )
-from app.services.v2_progress_service import module_progress
+from app.services.v2_continuation_service import has_beginner_continuation_grant
 
 BEGINNER_VERSION = "nexus_beginner_aplus_v1"
 STAGE_KEYS = (
@@ -36,7 +36,8 @@ def stage_lock_reason(db: Session, student_id: int, module_key: str) -> str | No
         return None
     index = STAGE_KEYS.index(module_key)
     for prior_index, previous in enumerate(STAGE_KEYS[:index], start=1):
-        if not module_progress(db, student_id, previous)["module_complete"]:
+        prior = db.query(CertificationModule).filter_by(module_key=previous, active=True).one_or_none()
+        if prior is None or not has_beginner_continuation_grant(db, student_id, prior.id):
             return f"Finish Stage {prior_index} before starting Stage {index + 1}."
     return None
 

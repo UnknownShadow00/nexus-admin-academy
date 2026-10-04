@@ -24,7 +24,7 @@ export function buildContinueTarget(v2Learning, training) {
     const next = v2.continue;
     const activityType = ({ lesson: "Lesson", resource: "Required resource", quick_check: "Quick Check", module_quiz: "Module Quiz", practical: "Practical", review_pending: "Practical", correction: "Practical correction", service_desk: "Service Desk", explain: "Explain" })[next.kind] || "Course activity";
     const status = next.status || "not_started";
-    const label = next.kind === "correction" ? "Fix & resubmit" : next.kind === "review_pending" ? "Awaiting mentor review" : ["needs_review", "failed", "passed"].includes(status)
+    const label = next.kind === "next_stage" ? "Continue learning" : next.kind === "correction" ? "Fix & resubmit" : next.kind === "review_pending" ? "Awaiting mentor review" : ["needs_review", "failed", "passed"].includes(status)
       ? "Review result"
       : status === "completed" || next.kind === "complete"
         ? "Review result"

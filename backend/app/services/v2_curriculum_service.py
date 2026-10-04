@@ -396,6 +396,7 @@ def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment)
     return {
         "key": assessment.assessment_key,
         "role": assessment.assessment_role,
+        "required": bool(config.get("required", True)),
         "title": assessment.title,
         "question_count": assessment.displayed_count,
         "pass_percent": assessment.pass_percent,
@@ -452,6 +453,24 @@ def module_view(db: Session, student_id: int, module_key: str) -> dict:
         "interactions": interaction_list(db, student_id, module_key),
     }
     result["continue"] = resolve_continue(result)
+    # Only a published, accessible successor may replace a review destination.
+    from app.services.v2_beginner_path import STAGE_KEYS, stage_lock_reason
+    if module_key in STAGE_KEYS and progress.get("continuation_granted"):
+        index = STAGE_KEYS.index(module_key)
+        if index + 1 < len(STAGE_KEYS):
+            next_key = STAGE_KEYS[index + 1]
+            next_module = db.query(CertificationModule).filter_by(module_key=next_key, active=True).one_or_none()
+            if (next_module and _lessons(db, next_module.id)
+                    and not stage_lock_reason(db, student_id, next_key)):
+                next_roles = {row.assessment_role for row in _assessments(db, next_module.id)}
+                next_evidence = any(row.is_required for row in active_evidence_requirements(db, next_module.id))
+                if STUDENT_MODULE_ROLES.issubset(next_roles) or next_evidence:
+                    result["continue"] = {
+                        "kind": "next_stage", "label": "Continue learning",
+                        "title": next_module.title,
+                        "route": f"/learning-v2/modules/{next_key}",
+                        "status": "available", "estimated_minutes": None,
+                    }
     return result
 
 
@@ -496,7 +515,7 @@ def entry_view(db: Session, student_id: int) -> dict:
         })
         for assessment in view["assessments"]:
             activity = assessment["progress"]
-            if assessment["role"] == V2_ACTIVITY_PRACTICAL and activity["status"] == "failed" and (activity.get("detail") or {}).get("review_decision") == "reject":
+            if assessment["role"] == V2_ACTIVITY_PRACTICAL and (activity["status"] == "failed" or beginner and activity["status"] == "in_progress") and (activity.get("detail") or {}).get("review_decision") == "reject":
                 corrections.append({
                     "module_key": module.module_key,
                     "stage_title": module.title,
@@ -505,8 +524,16 @@ def entry_view(db: Session, student_id: int) -> dict:
                     "feedback": activity["detail"].get("review_feedback", ""),
                     "route": f"/learning-v2/modules/{module.module_key}/practical/{assessment['key']}",
                 })
-    current = next((item for item in items if not item["locked"] and not item["progress"]["module_complete"]), None)
-    return {"modules": items, "current": current or (items[-1] if items else None), "corrections": corrections}
+    if beginner:
+        accessible = [item for item in items if not item["locked"]]
+        current = next((item for item in accessible if not item["progress"]["continuation_granted"]), None)
+        # All grants mean the learner may reach the newest stage. Historical
+        # prefix grants and old mentor corrections must not pull Continue back.
+        current = current or (accessible[-1] if accessible else None)
+    else:
+        current = next((item for item in items if not item["locked"] and not item["progress"]["module_complete"]), None)
+        current = current or (items[-1] if items else None)
+    return {"modules": items, "current": current, "corrections": corrections, "outstanding_corrections": corrections}
 
 
 def lesson_view(db: Session, student_id: int, module_key: str, lesson_key: str) -> dict:
@@ -586,7 +613,7 @@ def resolve_continue(view: dict) -> dict:
                 "estimated_minutes": lesson["estimated_minutes"],
             }
         qc = lesson.get("quick_check")
-        if qc and qc["progress"]["status"] not in DONE:
+        if qc and (not beginner_stage or qc.get("required", True)) and qc["progress"]["status"] not in DONE:
             if qc.get("available", True):
                 return {
                     "kind": "quick_check", "label": "Continue with Quick Check", "title": qc["title"],
@@ -611,11 +638,21 @@ def resolve_continue(view: dict) -> dict:
             "estimated_minutes": None,
         }
     for role, label in ((V2_ACTIVITY_MODULE_QUIZ, "Take the final checkpoint" if beginner_stage else "Take the Module Quiz"), (V2_ACTIVITY_PRACTICAL, "Start the practical"), (V2_ACTIVITY_SERVICE_DESK, "Troubleshoot a ticket")):
-        item = next((a for a in view["assessments"] if a["role"] == role), None)
-        if item and item["progress"]["status"] not in DONE:
+        role_items = [a for a in view["assessments"] if a["role"] == role and (not beginner_stage or a.get("required", True))]
+        if not beginner_stage:
+            role_items = role_items[:1]
+        if beginner_stage and role == V2_ACTIVITY_PRACTICAL:
+            role_items.sort(key=lambda a: (
+                0 if a["progress"]["status"] in {"failed", "in_progress"}
+                and (a["progress"].get("detail") or {}).get("review_decision") == "reject"
+                else {"not_started": 1, "in_progress": 1, "failed": 1, "needs_review": 2}.get(a["progress"]["status"], 3)
+            ))
+        for item in role_items:
+            if item["progress"]["status"] in DONE:
+                continue
             if role == V2_ACTIVITY_PRACTICAL and item["progress"]["status"] == "needs_review":
                 return {"kind": "review_pending", "label": "Awaiting mentor review", "title": item["title"], "route": f"/learning-v2/modules/{module_key}/practical/{item['key']}", "status": "needs_review"}
-            if role == V2_ACTIVITY_PRACTICAL and item["progress"]["status"] == "failed" and (item["progress"].get("detail") or {}).get("review_decision") == "reject":
+            if role == V2_ACTIVITY_PRACTICAL and (item["progress"]["status"] == "failed" or beginner_stage and item["progress"]["status"] == "in_progress") and (item["progress"].get("detail") or {}).get("review_decision") == "reject":
                 return {"kind": "correction", "label": "Fix & resubmit", "title": item["title"], "route": f"/learning-v2/modules/{module_key}/practical/{item['key']}", "status": "needs_correction"}
             if not item.get("available", False):
                 _remember_blocked(item)

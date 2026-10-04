@@ -26,7 +26,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REVISION_0060 = "0060_network_linux_cloud_practical_upgrade"
 REVISION_0061 = "0061_integrated_support_prove"
 REVISION_0062 = "0062_beginner_learning_rollout"
-RECONCILED_HEAD = "0075_v2_learning_interactions"
+RECONCILED_HEAD = "0076_beginner_continuation_grants"
 
 client = make_client(router)
 labs_client = make_client(labs_router)

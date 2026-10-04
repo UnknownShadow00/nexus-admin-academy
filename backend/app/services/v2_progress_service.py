@@ -1,7 +1,8 @@
 """Server-derived Nexus V2 learning evidence and module mastery.
 
-This is authoritative for V2 presentation only. Legacy TrainingWeek, XP,
-promotion and certification mastery ledgers do not read it.
+This is authoritative for V2 module mastery and beginner continuation
+eligibility. Legacy TrainingWeek, XP, promotion and certification mastery
+ledgers do not read it.
 """
 
 from __future__ import annotations
@@ -152,6 +153,9 @@ def record_activity(
             row.detail = dict(detail)
 
     db.flush()
+    if module_key.startswith("module.nexus.beginner.stage"):
+        from app.services.v2_continuation_service import ensure_beginner_continuation_grant
+        ensure_beginner_continuation_grant(db, student_id, module_key)
     if commit:
         db.commit()
         db.refresh(row)
@@ -197,6 +201,10 @@ def record_trusted_evidence(
         )
         db.add(row)
         db.flush()
+    from app.services.v2_continuation_service import ensure_beginner_continuation_grant
+    module = db.get(CertificationModule, requirement.module_id)
+    if module:
+        ensure_beginner_continuation_grant(db, student_id, module.module_key)
     return row
 
 
@@ -225,7 +233,10 @@ def active_evidence_requirements(db: Session, module_id: int) -> list[V2Evidence
     ]
 
 
-def module_progress(db: Session, student_id: int, module_key: str) -> dict:
+def module_progress(
+    db: Session, student_id: int, module_key: str, *,
+    backfill_prior_review: bool = False,
+) -> dict:
     """Roll up one student's activity for one V2 module (their own view)."""
     module = _module_or_none(db, module_key)
     if module is None:
@@ -378,7 +389,17 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
     )
     practical_entry = next(iter(role_views[V2_ACTIVITY_PRACTICAL]), None)
     service_desk_entry = next(iter(role_views[V2_ACTIVITY_SERVICE_DESK]), None)
+    from app.services.v2_beginner_path import STAGE_KEYS
+    beginner_stage = module_key in STAGE_KEYS
     required_assessments = [a for a in assessments if a.config.get("required", True)]
+    from app.services.v2_continuation_service import (
+        has_beginner_continuation_grant, mentor_review_required,
+        valid_mentor_practical_submission,
+    )
+    mentor_practicals = [
+        a for a in required_assessments
+        if beginner_stage and a.assessment_role == V2_ACTIVITY_PRACTICAL and mentor_review_required(db, a)
+    ]
     assessment_evidence = {
         (a.assessment_role, a.assessment_key): bool(
             by_ref.get((a.assessment_role, a.assessment_key))
@@ -403,9 +424,8 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
     interactions_done = all(r.id in satisfied_ids for r in required_interactions)
     # Beginner learning groups are completed by their actual evidence, not the
     # optional legacy lesson-complete click.
-    from app.services.v2_beginner_path import STAGE_KEYS
     groups = []
-    if module_key in STAGE_KEYS:
+    if beginner_stage:
         published_interactions = db.query(V2InteractionDefinition).filter_by(
             module_id=module.id, status="published", required=True,
         ).all()
@@ -456,6 +476,21 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         and checks_passed and applies_passed and interactions_done
         and extra_applies_done and prompts_passed
     )
+    # Mastery above remains unchanged. Continuation permits submitted mentor
+    # work while every automatic requirement has already passed.
+    continuation_eligible = bool(
+        beginner_stage and trusted_requirement_exists
+        and required_resources_done == len(required_resources)
+        and checks_passed and interactions_done and extra_applies_done and prompts_passed
+        and all(
+            assessment_evidence[(a.assessment_role, a.assessment_key)]
+            for a in required_assessments if a not in mentor_practicals
+        )
+        and all(valid_mentor_practical_submission(
+            db, student_id, a, by_ref.get((V2_ACTIVITY_PRACTICAL, a.assessment_key)),
+            allow_prior_review=backfill_prior_review,
+        ) for a in mentor_practicals)
+    )
     quiz_ids = [a.quiz_id for a in assessments if a.quiz_id]
     review_due = bool(quiz_ids and db.query(FlashcardReview.id).join(
         Question, Question.id == FlashcardReview.question_id,
@@ -488,11 +523,16 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
             mastery_status = "not_started"
         if module_key not in STAGE_KEYS and checks_passed and any(a.assessment_role in knowledge_roles for a in required_assessments):
             mastery_status = "passed"
-        practical_activity = next((by_ref.get((V2_ACTIVITY_PRACTICAL, a.assessment_key)) for a in required_assessments if a.assessment_role == V2_ACTIVITY_PRACTICAL), None)
-        if practical_activity and practical_activity.status == "needs_review":
-            mastery_status = "awaiting_mentor_review"
-        elif practical_activity and practical_activity.status == "failed" and (practical_activity.detail or {}).get("review_decision") == "reject":
+        practical_activities = [
+            by_ref.get((V2_ACTIVITY_PRACTICAL, a.assessment_key))
+            for a in required_assessments if a.assessment_role == V2_ACTIVITY_PRACTICAL
+        ]
+        if not beginner_stage:
+            practical_activities = practical_activities[:1]
+        if any(a and (a.status == "failed" or beginner_stage and a.status == "in_progress") and (a.detail or {}).get("review_decision") == "reject" for a in practical_activities):
             mastery_status = "needs_correction"
+        elif any(a and a.status == "needs_review" for a in practical_activities):
+            mastery_status = "awaiting_mentor_review"
         if missing_resource:
             next_action = "Open video" if missing_resource["resource_type"] == "video" and not missing_resource["evidence"]["opened_at"] else "Mark video watched" if missing_resource["resource_type"] == "video" else "Open resource"
         elif not interactions_done:
@@ -508,7 +548,7 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         else:
             next_action = "Continue"
 
-    return {
+    result = {
         "module_key": module_key,
         "module_title": module.title,
         "lessons": {
@@ -547,6 +587,15 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         "review_due": review_due,
         "module_complete": mastered,
     }
+    if beginner_stage:
+        granted = has_beginner_continuation_grant(db, student_id, module.id)
+        result.update({
+            "continuation_eligible": continuation_eligible,
+            "continuation_granted": granted,
+            "can_continue": granted,
+            "continuation_status": "granted" if granted else "requirements_remaining",
+        })
+    return result
 
 
 def reconcile_v2_service_desk_attempt(

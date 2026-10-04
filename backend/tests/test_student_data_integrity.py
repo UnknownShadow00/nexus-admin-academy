@@ -55,6 +55,7 @@ from app.models.v2_progress import (
 )
 from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
 from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition
+from app.models.v2_continuation import V2BeginnerContinuationGrant
 from app.routers.admin_students import router as admin_students_router
 from app.services.admin_auth import verify_admin
 from app.services.student_deletion import (
@@ -412,6 +413,10 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
                 attempt_number=1, definition_snapshot={"question": "What?"},
                 response_snapshot={"answer": "yes"}, result_snapshot={"passed": True},
                 score=100, passed=True,
+            ),
+            V2BeginnerContinuationGrant(
+                student_id=student_id, certification_module_id=certification_module.id,
+                grant_reason="backfill_prior_access",
             ),
         ]
     )
