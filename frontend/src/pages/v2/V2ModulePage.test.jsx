@@ -46,6 +46,21 @@ describe("V2ModulePage", () => {
     expect(await screen.findByLabelText("Hands-on practical unavailable")).toHaveTextContent("This activity has not been prepared for students yet.");
     expect(screen.getByLabelText("Hands-on practical unavailable")).toHaveTextContent("Choose another available activity");
   });
+  it("preserves mentor pending and rejected practical actions for non-beginner modules", async () => {
+    api.getV2Module.mockResolvedValueOnce({ data: {
+      ...data,
+      assessments: [
+        { key: "pending", role: "practical", title: "Pending practical", available: true, progress: { status: "needs_review" } },
+        { key: "rejected", role: "practical", title: "Rejected practical", available: true, progress: { status: "failed", detail: { review_decision: "reject" } } },
+      ],
+    } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
+    expect(screen.getAllByText("With your mentor").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Changes requested").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /View practical status/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/pending");
+    expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/rejected");
+  });
   it("shows mentor review separately from the next learning stage and lists every practical", async () => {
     api.getV2Module.mockResolvedValueOnce({ data: {
       ...data,

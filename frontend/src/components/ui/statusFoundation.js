@@ -51,9 +51,8 @@ export function mentorFollowUpStatus(progress) {
 }
 
 export function practicalDisplayStatus(progress, beginner = false) {
-  if (!beginner) return progress?.status || "not_started";
-  if (progress?.detail?.review_decision === "reject" && ["failed", "in_progress"].includes(progress.status)) return "needs_correction";
   if (progress?.status === "needs_review") return "awaiting_mentor_review";
-  if (progress?.status === "passed") return "approved";
+  if (progress?.detail?.review_decision === "reject" && (progress.status === "failed" || (beginner && progress.status === "in_progress"))) return "needs_correction";
+  if (beginner && progress?.status === "passed") return "approved";
   return progress?.status || "not_started";
 }

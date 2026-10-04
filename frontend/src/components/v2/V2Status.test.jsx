@@ -43,5 +43,8 @@ describe("V2 status presentation", () => {
     expect(practicalDisplayStatus({ status: "passed" }, true)).toBe("approved");
     expect(practicalDisplayStatus({ status: "passed" }, false)).toBe("passed");
     expect(practicalDisplayStatus({ status: "needs_review" }, true)).toBe("awaiting_mentor_review");
+    expect(practicalDisplayStatus({ status: "needs_review" }, false)).toBe("awaiting_mentor_review");
+    expect(practicalDisplayStatus({ status: "failed", detail: { review_decision: "reject" } }, false)).toBe("needs_correction");
+    expect(practicalDisplayStatus({ status: "in_progress", detail: { review_decision: "reject" } }, false)).toBe("in_progress");
   });
 });
