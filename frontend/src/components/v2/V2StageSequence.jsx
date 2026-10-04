@@ -49,7 +49,9 @@ export function stageSequenceItems(data, { summary = false } = {}) {
   for (const assessment of data.assessments || []) {
     if (!(assessment.role in assessmentNames)) continue;
     const routePart = assessment.role === "module_quiz" ? "assessments" : assessment.role === "service_desk" ? "service-desk" : "practical";
-    items.push({ key: `assessment-${assessment.key}`, kind: assessment.role, type: assessmentNames[assessment.role], title: assessment.title,
+    const title = assessment.role === "service_desk" && /service_desk\.[\w.]+/.test(assessment.title)
+      ? "Troubleshoot a ticket" : assessment.title;
+    items.push({ key: `assessment-${assessment.key}`, kind: assessment.role, type: assessmentNames[assessment.role], title,
       status: assessment.role === "practical" ? practicalDisplayStatus(assessment.progress, beginner) : assessment.progress?.status,
       route: `${base}/${routePart}/${assessment.key}`, available: assessment.available !== false,
       unavailable: assessment.unavailable });

@@ -3070,3 +3070,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md.
 - Result: PASS — focused 8 tests, full 190 frontend tests, production build, npm audit with zero vulnerabilities, and git diff --check.
 - Next: Push the focused fix, wait for replacement GitHub CI and inspect review threads; keep PR #55 open.
+
+## [2026-10-04 23:31:37 UTC] Task Completed
+- Task: Restored the learner-facing Service Desk entry label on the Stage work plan when server content uses an internal scenario reference, preserving the actual route and adding a regression test.
+- Files changed: frontend/src/components/v2/V2StageSequence.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md.
+- Result: PASS — focused 9 tests, full 191 frontend tests, production build, and git diff --check; prior audit recorded zero high-severity npm vulnerabilities.
+- Next: Push the fix, wait for the new GitHub CI run, and inspect browser and review results; keep PR #55 open.

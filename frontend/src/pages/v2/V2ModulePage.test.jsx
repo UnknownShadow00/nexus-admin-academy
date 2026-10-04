@@ -48,6 +48,15 @@ describe("Stage work plan", () => {
     expect(api.getV2Module).toHaveBeenCalledWith("module.dynamic", { suppressToast: true });
   });
 
+  it("uses a learner-facing label for an internal Service Desk reference and keeps its route", async () => {
+    const data = base({ assessments: [{ key: "assess.printers.service_desk", role: "service_desk",
+      title: "Service Desk — service_desk.aplus.printers.hr_queue", available: true, progress: { status: "not_started" } }] });
+    show(data);
+    const link = await screen.findByRole("link", { name: "Troubleshoot a ticket" });
+    expect(link).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/service-desk/assess.printers.service_desk");
+    expect(screen.queryByText(/service_desk\.aplus\.printers\.hr_queue/)).not.toBeInTheDocument();
+  });
+
   it("shows a server-unavailable activity without offering its route", async () => {
     const data = base({ assessments: [{ key: "support", role: "practical", title: "Support practical", available: false,
       unavailable: { reason: "This activity has not been prepared for students yet.", required_action: "Choose another available activity in this module." }, progress: { status: "not_started" } }] });
