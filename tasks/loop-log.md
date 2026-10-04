@@ -3028,3 +3028,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/App.jsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
 - Result: PASS — the drawer now closes when the matching desktop breakpoint is reached and moves focus from the drawer to the brand link. Focused disposable browser UAT verified the drawer detaches, focus moves, and Admin Sign Out works after a 375-to-1440px resize; 180 frontend tests pass across 38 files. The CI failure was my-training.spec.js line 344, where the still-open drawer intercepted the sign-out click.
 - Next: Push the fix, inspect the new CI run and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:50:49 UTC] Task Completed
+- Task: Merged PR #53 after verifying its head, green CI, mergeability, and empty review threads; built a focused Today page redesign from the new main in a fresh worktree.
+- Files changed: frontend/src/pages/StudentHome.jsx, frontend/src/pages/StudentHome.test.jsx, frontend/src/styles.css, frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/v2-copy-shell.spec.js, tasks/loop-log.md.
+- Result: PASS for local acceptance — 187 frontend tests pass, npm audit reports zero vulnerabilities, production frontend build and both CLI checks pass, and disposable Playwright visual checks cover normal, mentor, correction, waiting, and mastered states at desktop/mobile in light/dark. Stage 4 content and Alembic head remain unchanged; no backend, progression, curriculum, or production changes.
+- Next: Commit and push PR 4, inspect GitHub CI and reviews, and leave PR 4 unmerged.

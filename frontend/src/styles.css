@@ -179,6 +179,24 @@
   .surface-subtle { border: 1px solid var(--nexus-border); border-radius: .85rem; background: var(--nexus-surface-subtle); }
   .surface-selected { border: 1px solid var(--nexus-border-strong); border-radius: .9rem; background: var(--nexus-surface-selected); }
   .surface-raised { border: 1px solid var(--nexus-border-strong); border-radius: .9rem; background: var(--nexus-surface-raised); }
+  .today-layout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(17rem, 1fr); gap: 1.25rem; align-items: start; }
+  .today-layout-solo { grid-template-columns: minmax(0, 48rem); }
+  .today-primary { min-width: 0; padding: clamp(1.35rem, 3vw, 2.3rem); border: 1px solid var(--nexus-border-strong); border-radius: 1rem; background: var(--nexus-surface); }
+  .today-primary-correction { border-left: 3px solid var(--nexus-changes-border); }
+  .today-primary-title { margin-top: .85rem; max-width: 22ch; color: var(--nexus-text); font-size: clamp(1.7rem, 2.7vw, 2.3rem); font-weight: 740; letter-spacing: -.03em; line-height: 1.2; overflow-wrap: anywhere; }
+  .today-context { margin-top: .85rem; color: var(--nexus-text-secondary); font-size: .94rem; line-height: 1.5; }
+  .today-follow-up { min-width: 0; padding: 1.4rem; border: 1px solid var(--nexus-border); border-radius: 1rem; background: var(--nexus-surface-subtle); }
+  .today-follow-up-item { padding: 1rem; border: 1px solid var(--nexus-border); border-radius: .85rem; background: var(--nexus-surface); overflow-wrap: anywhere; }
+  .today-follow-up-mentor { border-left: 3px solid var(--nexus-mentor-border); }
+  .today-follow-up-changes { border-left: 3px solid var(--nexus-changes-border); }
+  .today-feedback { padding: .75rem; border-radius: .65rem; background: var(--nexus-surface-subtle); color: var(--nexus-text-secondary); font-size: .88rem; line-height: 1.55; }
+  .today-quiet-links { display: grid; gap: .5rem; }
+  .today-bottom-line { color: var(--nexus-text-muted); font-size: .9rem; }
+  .today-bottom-line a { color: var(--nexus-link); font-weight: 650; text-decoration: underline; text-underline-offset: .2em; }
+  @media (max-width: 767px) {
+    .today-layout { grid-template-columns: minmax(0, 1fr); }
+    .today-primary-action { display: flex; width: 100%; }
+  }
   .interactive-row { border: 1px solid var(--nexus-border); border-radius: .75rem; background: var(--nexus-surface); transition: border-color .16s ease, background-color .16s ease; }
   .interactive-row:hover { border-color: var(--nexus-border-strong); background: var(--nexus-surface-subtle); }
 
