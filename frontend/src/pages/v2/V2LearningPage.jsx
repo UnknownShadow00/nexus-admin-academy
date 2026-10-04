@@ -7,6 +7,8 @@ import V2Status, { statusLabel } from "../../components/v2/V2Status";
 import { mentorFollowUpStatus, stageProgressStatus } from "../../components/ui/statusFoundation";
 import FlashcardReviewPanel from "../../components/FlashcardReviewPanel";
 import V2CorrectionAlerts from "../../components/v2/V2CorrectionAlerts";
+import PageContainer from "../../components/ui/PageContainer";
+import PageHeader from "../../components/ui/PageHeader";
 
 export default function V2LearningPage() {
   const [data, setData] = useState(null);
@@ -23,26 +25,22 @@ export default function V2LearningPage() {
   const beginner = current.certification.version.key === "nexus_beginner_aplus_v1";
   const lessons = current.progress.lessons;
   const examCode = current.certification.version.exam_codes?.[0] || current.certification.version.label;
-  return <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
+  return <PageContainer className="space-y-6">
     <V2CorrectionAlerts corrections={data.corrections} />
-    <header>
-      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">Your learning</p>
-      <h1 className="mt-1 text-3xl font-bold text-slate-950 dark:text-white">{current.certification.name}</h1>
-      <p className="mt-1 text-slate-600 dark:text-slate-300">{beginner ? `Stages 1–${data.modules.length} · Start here` : `${current.certification.version.label} · ${examCode}`}</p>
-    </header>
-    <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 to-slate-950 p-5 text-white shadow-lg sm:p-8">
+    <PageHeader eyebrow="Your learning" title={current.certification.name} description={beginner ? `Stages 1–${data.modules.length} · Start here` : `${current.certification.version.label} · ${examCode}`} />
+    <section className="surface-selected overflow-hidden p-5 sm:p-8">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-200">Current {beginner ? "stage" : "module"}</p>
+          <p className="type-label">Current {beginner ? "stage" : "module"}</p>
           <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{current.module.title}</h2>
-          <p className="mt-3 text-blue-100">{current.module.description}</p>
+          <p className="type-secondary mt-3">{current.module.description}</p>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{beginner ? `${lessons.total} topics` : `${lessons.completed} of ${lessons.total} lessons marked complete`}</span>
-            {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />{beginner ? "Stage mastered" : "Module mastered"}</span> : beginner ? <V2Status status={stageProgressStatus(current.progress)} /> : null}
+            <span className="status-tone status-tone-neutral gap-2 rounded-full px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{beginner ? `${lessons.total} topics` : `${lessons.completed} of ${lessons.total} lessons marked complete`}</span>
+            {current.progress.module_complete ? <span className="status-tone status-tone-mastered rounded-full px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />{beginner ? "Stage mastered" : "Module mastered"}</span> : beginner ? <V2Status status={stageProgressStatus(current.progress)} /> : null}
             {beginner && mentorFollowUpStatus(current.progress) ? <V2Status status={mentorFollowUpStatus(current.progress)} /> : null}
           </div>
         </div>
-        <Link className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-800 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" to={current.continue.route}>
+        <Link className="btn-primary min-h-12 shrink-0 px-5" to={current.continue.route}>
           {current.continue.kind === "review_pending" ? "View practical status" : current.continue.label}<ArrowRight size={18} aria-hidden="true" />
         </Link>
       </div>
@@ -64,5 +62,5 @@ export default function V2LearningPage() {
       </div>
     </section>
     {beginner && data.modules.some((item) => item.progress.review_due) ? <section className="panel" aria-labelledby="review-heading"><h2 id="review-heading" className="text-xl font-bold">Review due</h2><p className="mt-1 mb-4 text-sm text-slate-600 dark:text-slate-300">A few questions are ready for another look. Review never blocks your stage.</p><FlashcardReviewPanel scope="beginner" /></section> : null}
-  </main>;
+  </PageContainer>;
 }

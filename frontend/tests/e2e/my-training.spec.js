@@ -119,7 +119,8 @@ test("student authentication rejects invalid credentials and protects private ro
   await expect(page).toHaveURL(/\/skills$/);
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/skills");
   await expect(page).toHaveURL(/\/login$/);
@@ -259,9 +260,10 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/learning-path");
   await page.getByRole("button", { name: "Toggle menu" }).click();
-  await expect(page.getByRole("link", { name: "Today", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Service Desk", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
+  const mobileMenu = page.getByRole("navigation", { name: "All navigation" });
+  await expect(mobileMenu.getByRole("link", { name: "Today", exact: true })).toBeVisible();
+  await expect(mobileMenu.getByRole("link", { name: "Service Desk", exact: true })).toBeVisible();
+  await expect(mobileMenu.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Extra Practice/ })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/module/module.orientation.nexus");
@@ -289,7 +291,8 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   // report a 401 even though the protected-route behavior is correct.
   await page.waitForLoadState("networkidle");
   monitor.pause();
-  await page.getByRole("button", { name: "Fresh Progression Student A" }).click();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
   expect(monitor.consoleErrors).toEqual([]);
@@ -302,7 +305,7 @@ test("admin can open Curriculum Structure under Learning Content", async ({ page
   await adminLogin(page);
   const monitor = monitorPage(page);
   await page.getByRole("button", { name: /Learning Content/ }).click();
-  await page.getByRole("menuitem", { name: "Curriculum Structure" }).click();
+  await page.getByRole("link", { name: "Curriculum Structure" }).click();
   await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
   await expect(page.getByText("137 of 137", { exact: false })).toBeVisible();
@@ -330,10 +333,11 @@ test("admin can open Curriculum Structure under Learning Content", async ({ page
   await expect(page.getByRole("heading", { name: "Service Desk Review" })).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Toggle menu" }).click();
-  await expect(page.getByRole("navigation").getByText("Learning Content", { exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "All navigation" }).getByText("Learning Content", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole("navigation", { name: "All navigation" })).toHaveCount(0);
   // Let StrictMode's duplicate initial data requests settle before logout
   // revokes the shared admin session cookie. Otherwise a request can cross
   // the logout boundary and produce a harmless but noisy 403 in the console.
@@ -554,7 +558,8 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(page.getByText(/Endpoint Foundations — Support Workflow Essentials/).first()).toBeVisible();
 
     monitor.pause();
-    await page.getByRole("button", { name: "Disposable Browser Flow Student" }).click();
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login$/);
     await studentLogin(page, username, permanentPassword);
     monitor.resume();

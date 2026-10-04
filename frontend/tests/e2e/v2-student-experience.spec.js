@@ -96,7 +96,8 @@ test("authenticated student can use the live V2 shell and durable activity surfa
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
-  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password").fill(password);

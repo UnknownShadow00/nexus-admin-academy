@@ -76,7 +76,7 @@ export default function AdminAccessGate({ children, onAuthenticationChange }) {
 
   return (
     <>
-      <div className="mx-auto mt-2 flex max-w-7xl justify-end gap-2 px-6">
+      <div className="app-admin-actions">
         <button className="btn-secondary text-xs" type="button" onClick={onSwitchToStudent}>
           Switch to Student View
         </button>

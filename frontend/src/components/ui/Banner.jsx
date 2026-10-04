@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock3, Info, MessageSquareText } from "lucide-react";
 
 const variants = {
   info: {
@@ -16,6 +16,14 @@ const variants = {
   error: {
     Icon: AlertCircle,
     className: "notice-error",
+  },
+  mentor: {
+    Icon: Clock3,
+    className: "notice-mentor",
+  },
+  correction: {
+    Icon: MessageSquareText,
+    className: "notice-correction",
   },
 };
 

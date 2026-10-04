@@ -2998,3 +2998,33 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/v2-student-experience.spec.js, tasks/loop-log.md.
 - Result: PASS — the spec lists successfully, full frontend suite remains 171 passed, and git diff --check is clean. Only obsolete expected labels changed; browser test behavior and CI gates remain intact.
 - Next: Push the test alignment and inspect the final GitHub CI run and review threads; do not merge.
+
+## [2026-10-04 20:55:00 UTC] Task Completed
+- Task: Implemented Nexus UI PR 3 shared application shell, semantic light/dark design tokens, learner desktop/mobile navigation, width/layout primitives, and representative page integration in an isolated worktree.
+- Files changed: frontend/src/App.jsx, frontend/src/App.navigation.test.jsx, frontend/src/components/AdminAccessGate.jsx, frontend/src/components/ReportIssueButton.jsx, frontend/src/components/ui/Banner.jsx, frontend/src/components/ui/Banner.test.jsx, frontend/src/components/ui/PageContainer.jsx, frontend/src/components/ui/PageContainer.test.jsx, frontend/src/components/ui/PageHeader.jsx, frontend/src/components/ui/statusFoundation.js, frontend/src/components/v2/TeachingCardViewer.jsx, frontend/src/components/v2/V2ResourceCard.jsx, frontend/src/components/v2/V2Status.test.jsx, frontend/src/pages/AdminHome.jsx, frontend/src/pages/LabPage.jsx, frontend/src/pages/StudentHome.jsx, frontend/src/pages/TrainingProgressPage.jsx, frontend/src/pages/v2/V2LearningPage.jsx, frontend/src/pages/v2/V2LessonPage.jsx, frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/styles.css, tasks/loop-log.md.
+- Result: PASS for scoped implementation and local gates: npm ci, 180 frontend tests across 38 files, production build, npm audit (0 vulnerabilities), CLI validate/sanity, git diff --check, protected Stage 4 question SHA, one Alembic head, and focused browser shell UAT. Visual review captured 41 screenshots and six contact sheets outside git, with no observed horizontal overflow at 375, 768, 1024, 1280, 1366, 1440, or 1920px. The existing V2 copy shell Playwright spec failed at its Service Desk health precondition because the isolated runtime has no Service Desk service; focused browser validation passed. No backend, curriculum, progression/mastery, Service Desk workflow, or production changes.
+- Next: Commit and open the focused PR, inspect GitHub CI and review comments, and leave the PR unmerged. Service Desk integration E2E needs its normal dedicated fixture/runtime.
+
+## [2026-10-04 21:01:32 UTC] Task Completed
+- Task: Aligned existing Playwright navigation and logout selectors with the PR 3 account popover and named mobile navigation drawer.
+- Files changed: frontend/tests/e2e/v2-copy-shell.spec.js, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS — both modified specs list successfully (7 tests), and existing assertions for navigation visibility and logout remain. The prior isolated integration run still requires a separate Service Desk runtime; focused browser shell UAT passed.
+- Next: Push this in-scope test update, inspect the new GitHub CI run and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:03:19 UTC] Task Completed
+- Task: Fixed PR #53 Playwright failure caused by tests targeting the removed direct learner sign-out button; updated all remaining learner logout checks to use Account menu then Sign out.
+- Files changed: frontend/tests/e2e/forced-password-change.spec.js, frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/v2-student-experience.spec.js, tasks/loop-log.md.
+- Result: PASS for in-scope test alignment — the first CI Playwright run timed out at forced-password-change.spec.js line 116 on the obsolete direct student-name button, then cleanup failed after the browser timed out. All four affected Playwright specs list successfully (9 tests); logout and protected-route assertions remain. No production or product-code changes in this follow-up.
+- Next: Push the test fix, wait for the new CI run, inspect all jobs and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:07:39 UTC] Task Completed
+- Task: Fixed PR #53 admin navigation Playwright selectors after the shell changed dropdown destinations from ARIA menu items to ordinary links; kept desktop fixture widths explicit.
+- Files changed: frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/question-import.spec.js, frontend/tests/e2e/weeks-1-4-quality.spec.js, tasks/loop-log.md.
+- Result: PASS for in-scope test alignment — 13 affected Playwright tests list successfully and git diff --check passes. The preceding CI run passed forced-password rotation and the learner desktop/mobile tests, then timed out at my-training.spec.js line 308 waiting for the obsolete menuitem role; destination and content assertions remain.
+- Next: Push this fix, wait for the next CI run, inspect all jobs and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:13:07 UTC] Task Completed
+- Task: Fixed a real responsive shell defect found by PR #53 CI: the admin mobile drawer stayed open after resizing to desktop and blocked the sign-out control.
+- Files changed: frontend/src/App.jsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS — the drawer now closes when the matching desktop breakpoint is reached and moves focus from the drawer to the brand link. Focused disposable browser UAT verified the drawer detaches, focus moves, and Admin Sign Out works after a 375-to-1440px resize; 180 frontend tests pass across 38 files. The CI failure was my-training.spec.js line 344, where the still-open drawer intercepted the sign-out click.
+- Next: Push the fix, inspect the new CI run and review threads, and leave PR #53 unmerged.

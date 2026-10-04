@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import V2Status, { statusLabel } from "./V2Status";
 import { StatusBadge } from "../ui/Badge";
-import { getStatusPresentation, mentorFollowUpStatus, practicalDisplayStatus, stageProgressStatus } from "../ui/statusFoundation";
+import { getStatusPresentation, mentorFollowUpStatus, practicalDisplayStatus, stageProgressStatus, statusToneClasses } from "../ui/statusFoundation";
 
 afterEach(cleanup);
 
@@ -26,6 +26,9 @@ describe("V2 status presentation", () => {
     expect(getStatusPresentation("mastered").tone).toBe("mastered");
     expect(getStatusPresentation("failed").tone).toBe("error");
     expect(getStatusPresentation("not_quite").tone).toBe("correction");
+    expect(statusToneClasses.mentor).toContain("status-tone-mentor");
+    expect(statusToneClasses.correction).toContain("status-tone-correction");
+    expect(statusToneClasses.success).toContain("status-tone-success");
     render(<><V2Status status="awaiting_mentor_review" /><StatusBadge status="needs_correction" /><V2Status status="approved" /><V2Status status="mastered" /></>);
     expect(screen.getByText("With your mentor")).toBeVisible();
     expect(screen.getByText("Changes requested")).toBeVisible();

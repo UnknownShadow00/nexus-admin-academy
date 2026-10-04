@@ -10,6 +10,7 @@ import FinalSupportShiftPage from "./FinalSupportShiftPage";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
+import PageContainer from "../components/ui/PageContainer";
 import { createLabVmAccess, getLab, getLabVmStatus, startLab, startV2Lab, submitLab, submitV2Lab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
 import { setMonitoringContext } from "../monitoring/sentry";
 import V2NextStep from "../components/v2/V2NextStep";
@@ -269,24 +270,24 @@ function LabSession() {
 
   if (!lab && prerequisiteLock) {
     return (
-      <main className="mx-auto max-w-4xl space-y-4 p-6">
+      <PageContainer className="space-y-4">
         <BackLink fallbackLabel="Guided Labs" fallbackTo="/labs" />
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Lab locked</h1>
         <PrerequisiteLock lock={prerequisiteLock} />
-      </main>
+      </PageContainer>
     );
   }
 
   if (!lab && !error) {
     return (
-      <main className="mx-auto max-w-4xl p-6">
+      <PageContainer>
         <Spinner text="Loading lab..." />
-      </main>
+      </PageContainer>
     );
   }
 
   if (error) {
-    return <main className="mx-auto max-w-4xl p-6 text-sm text-slate-500 dark:text-slate-300">{error}</main>;
+    return <PageContainer className="text-sm text-slate-500 dark:text-slate-300">{error}</PageContainer>;
   }
 
   if (lab.lab_type === "structured_final_shift") {
@@ -308,7 +309,7 @@ function LabSession() {
   const approvedPractical = isStage4 && lab.review?.status === "passed" && lab.status === "submitted";
 
   return (
-    <main className="mx-auto max-w-7xl space-y-4 p-6">
+    <PageContainer width="workspace" className="space-y-4">
       <BackLink fallbackLabel={isV2Practical ? "Back to module" : "Guided Labs"} fallbackTo={isV2Practical ? `/learning-v2/modules/${v2ModuleKey}` : "/labs"} />
       <PageHeader
         title={isStage4 ? "Stage 4 practical" : lab.title}
@@ -502,6 +503,6 @@ function LabSession() {
           )}
         </aside>
       </div>
-    </main>
+    </PageContainer>
   );
 }
