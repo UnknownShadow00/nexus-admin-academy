@@ -259,9 +259,10 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/learning-path");
   await page.getByRole("button", { name: "Toggle menu" }).click();
-  await expect(page.getByRole("link", { name: "Today", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Service Desk", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
+  const mobileMenu = page.getByRole("navigation", { name: "All navigation" });
+  await expect(mobileMenu.getByRole("link", { name: "Today", exact: true })).toBeVisible();
+  await expect(mobileMenu.getByRole("link", { name: "Service Desk", exact: true })).toBeVisible();
+  await expect(mobileMenu.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Extra Practice/ })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/module/module.orientation.nexus");
@@ -330,7 +331,7 @@ test("admin can open Curriculum Structure under Learning Content", async ({ page
   await expect(page.getByRole("heading", { name: "Service Desk Review" })).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Toggle menu" }).click();
-  await expect(page.getByRole("navigation").getByText("Learning Content", { exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "All navigation" }).getByText("Learning Content", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
