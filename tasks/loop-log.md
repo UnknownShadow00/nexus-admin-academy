@@ -3040,3 +3040,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/StudentHome.jsx, frontend/src/pages/StudentHome.test.jsx, tasks/loop-log.md.
 - Result: PASS — 188 frontend tests across 38 files, production frontend build, npm audit with zero vulnerabilities, and git diff --check. Server continuation and mastery values are unchanged.
 - Next: Push the focused follow-up, update PR #54 validation notes, and inspect the replacement GitHub CI run.
+
+## [2026-10-04 21:59:26 UTC] Task Completed
+- Task: Corrected the Week 0 Playwright assertion after CI showed the redesigned Today page uses the module title in context rather than the former combined stage-and-module heading.
+- Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS — the assertion now checks the real module title across the initial and restored sessions; git diff --check passes. The learning unlock, route, and persistence assertions remain intact.
+- Next: Push the test correction and inspect the replacement CI run and review threads.

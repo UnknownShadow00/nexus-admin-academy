@@ -555,7 +555,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(supportModule).not.toContainText("Locked");
     await page.goto("/");
     await expect(page.getByText("Up next", { exact: true })).toBeVisible();
-    await expect(page.getByText(/Endpoint Foundations — Support Workflow Essentials/).first()).toBeVisible();
+    await expect(page.getByText(/Support Workflow Essentials/).first()).toBeVisible();
 
     monitor.pause();
     await page.getByRole("button", { name: "Account menu" }).click();
@@ -564,7 +564,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await studentLogin(page, username, permanentPassword);
     monitor.resume();
     await expect(page.getByText("Up next", { exact: true })).toBeVisible();
-    await expect(page.getByText(/Endpoint Foundations — Support Workflow Essentials/).first()).toBeVisible();
+    await expect(page.getByText(/Support Workflow Essentials/).first()).toBeVisible();
     await page.goto("/training/week/0");
     await expect(page.getByText("2 of 2 required activities complete").first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
