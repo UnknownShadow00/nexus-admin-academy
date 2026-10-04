@@ -82,9 +82,10 @@ export function buildTodayModel(v2Learning, training) {
   }
   const correction = followUps.find((item) => item.type === "needs_correction");
   const mode = target.isLearning ? "learning"
-    : current?.progress?.module_complete ? "mastered"
-      : !current && target.kind === "complete" ? "legacy_complete"
-      : correction ? "correction" : followUps.some((item) => item.type === "awaiting_mentor_review") ? "waiting" : "up_to_date";
+    : correction ? "correction"
+      : current?.progress?.module_complete ? "mastered"
+        : !current && target.kind === "complete" ? "legacy_complete"
+          : followUps.some((item) => item.type === "awaiting_mentor_review") ? "waiting" : "up_to_date";
   return { target, followUps, correction, mode };
 }
 
@@ -129,7 +130,7 @@ function TodayContent({ model, training, v2Learning }) {
       <section aria-labelledby="today-primary-heading" className={"today-primary" + (mode === "correction" ? " today-primary-correction" : "")}>
         <p className="type-label">{mode === "learning" ? "Up next" : mode === "correction" ? "Changes requested" : mode === "mastered" ? "Stage mastered" : mode === "legacy_complete" ? "Training complete" : "Current learning"}</p>
         <h2 id="today-primary-heading" className="today-primary-title">{primaryTitle}</h2>
-        {current ? <p className="today-context">{current.certification?.name} <span aria-hidden="true">·</span> {current.module?.title}</p> : target.detail ? <p className="today-context">{target.detail}</p> : null}
+        {current ? <p className="today-context">{current.certification?.name} <span aria-hidden="true">·</span> {mode === "correction" ? correction?.stage : current.module?.title}</p> : target.detail ? <p className="today-context">{target.detail}</p> : null}
         {mode === "learning" && target.v2 ? <div className="mt-4"><V2Status status={target.status} /></div> : mode === "mastered" && current ? <div className="mt-4"><V2Status status="mastered" /></div> : mode === "correction" ? <div className="mt-4"><V2Status status="needs_correction" /></div> : null}
         <p className="type-secondary mt-5 max-w-2xl">{description}</p>
         {mode === "correction" && correction?.feedback ? <p className="today-feedback mt-4 whitespace-pre-wrap"><strong>Mentor feedback:</strong> {correction.feedback}</p> : null}

@@ -106,6 +106,14 @@ describe("Today next action", () => {
     expect(screen.queryByRole("link", { name: /next stage/i })).not.toBeInTheDocument();
   });
 
+  it("prioritizes an earlier correction when the current stage is mastered and no learning remains", async () => {
+    const current = stage(4, next("complete", "Module mastered", "mastered"), { status: "mastered", module_complete: true });
+    show({ current, modules: [current], corrections: [correction] });
+    expect(await screen.findByRole("link", { name: "Update your practical" })).toHaveAttribute("href", correction.route);
+    expect(screen.getByRole("region", { name: "Support note" })).toHaveTextContent("Stage 3 — Support");
+    expect(screen.queryByText("Stage mastered")).not.toBeInTheDocument();
+  });
+
   it("follows a real server-provided next stage without inventing one", () => {
     const current = stage(3, next("next_stage", "Stage 4 — Windows Support", "available"), { status: "awaiting_mentor_review", continuation_granted: true });
     current.continue.route = "/learning-v2/modules/module.nexus.beginner.stage4";

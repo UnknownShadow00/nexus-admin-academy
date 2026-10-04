@@ -3034,3 +3034,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/StudentHome.jsx, frontend/src/pages/StudentHome.test.jsx, frontend/src/styles.css, frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/v2-copy-shell.spec.js, tasks/loop-log.md.
 - Result: PASS for local acceptance — 187 frontend tests pass, npm audit reports zero vulnerabilities, production frontend build and both CLI checks pass, and disposable Playwright visual checks cover normal, mentor, correction, waiting, and mastered states at desktop/mobile in light/dark. Stage 4 content and Alembic head remain unchanged; no backend, progression, curriculum, or production changes.
 - Next: Commit and push PR 4, inspect GitHub CI and reviews, and leave PR 4 unmerged.
+
+## [2026-10-04 21:55:04 UTC] Task Completed
+- Task: Corrected Today priority when an earlier practical needs changes after the currently selected stage is mastered; the remaining correction is now the main action with its own stage context.
+- Files changed: frontend/src/pages/StudentHome.jsx, frontend/src/pages/StudentHome.test.jsx, tasks/loop-log.md.
+- Result: PASS — 188 frontend tests across 38 files, production frontend build, npm audit with zero vulnerabilities, and git diff --check. Server continuation and mastery values are unchanged.
+- Next: Push the focused follow-up, update PR #54 validation notes, and inspect the replacement GitHub CI run.
