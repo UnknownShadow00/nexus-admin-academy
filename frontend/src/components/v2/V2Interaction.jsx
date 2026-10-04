@@ -61,7 +61,7 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
   }
   return <section className="panel space-y-5" aria-labelledby="interaction-title">
     <div className="flex flex-wrap items-start justify-between gap-3"><div>
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Interactive practice · version {interaction.version}{interaction.required ? " · Required" : " · Optional"}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">Interactive practice{interaction.required ? " · Required" : " · Optional"}</p>
       <h2 className="mt-1 text-xl font-bold" id="interaction-title">{interaction.title}</h2>
     </div><V2Status status={progress.status} /></div>
     <p id="interaction-instructions">{interaction.instructions}</p>

@@ -2,30 +2,49 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import V2Status, { statusLabel } from "./V2Status";
 import { StatusBadge } from "../ui/Badge";
+import { getStatusPresentation, mentorFollowUpStatus, practicalDisplayStatus, stageProgressStatus } from "../ui/statusFoundation";
 
 afterEach(cleanup);
 
 describe("V2 status presentation", () => {
   it.each([
     ["locked", "Locked"], ["not_started", "Not started"], ["in_progress", "In progress"],
-    ["viewed", "Viewed / Opened"], ["passed", "Passed"],
-    ["awaiting_mentor_review", "Awaiting mentor review"], ["needs_correction", "Needs correction"],
-    ["mastered", "Mastered"], ["failed", "Needs another try"],
+    ["up_next", "Up next"], ["viewed", "Opened"], ["completed", "Done"],
+    ["passed", "Passed"], ["approved", "Approved"],
+    ["awaiting_mentor_review", "With your mentor"], ["needs_correction", "Changes requested"],
+    ["mastered", "Mastered"], ["failed", "Not quite"],
   ])("labels %s as %s", (status, label) => {
     expect(statusLabel(status)).toBe(label);
     render(<V2Status status={status} />);
     expect(screen.getByText(label)).toBeVisible();
   });
 
-  it("keeps pending review, correction, failure, and mastery distinct across badge components", () => {
-    const { container } = render(<><V2Status status="awaiting_mentor_review" /><V2Status status="mastered" /><StatusBadge status="needs_correction" /><StatusBadge status="failed" /></>);
-    const pills = Array.from(container.querySelectorAll("span.inline-flex"));
-    expect(pills.map((pill) => pill.textContent)).toEqual([
-      "Awaiting mentor review", "Mastered", "Needs correction", "Needs another try",
-    ]);
-    expect(pills[0].className).toContain("amber");
-    expect(pills[1].className).toContain("green");
-    expect(pills[2].className).toContain("rose");
-    expect(pills[3].className).toContain("red");
+  it("keeps mentor follow-up, correction, approval, mastery, and errors semantically distinct", () => {
+    expect(getStatusPresentation("awaiting_mentor_review").tone).toBe("mentor");
+    expect(getStatusPresentation("needs_correction").tone).toBe("correction");
+    expect(getStatusPresentation("approved").tone).toBe("success");
+    expect(getStatusPresentation("mastered").tone).toBe("mastered");
+    expect(getStatusPresentation("failed").tone).toBe("error");
+    expect(getStatusPresentation("not_quite").tone).toBe("correction");
+    render(<><V2Status status="awaiting_mentor_review" /><StatusBadge status="needs_correction" /><V2Status status="approved" /><V2Status status="mastered" /></>);
+    expect(screen.getByText("With your mentor")).toBeVisible();
+    expect(screen.getByText("Changes requested")).toBeVisible();
+    expect(screen.getByText("Approved")).toBeVisible();
+    expect(screen.getByText("Mastered")).toBeVisible();
+  });
+
+  it("maps display status without changing the server's practical or stage values", () => {
+    const pending = { status: "awaiting_mentor_review", module_complete: false };
+    expect(stageProgressStatus(pending)).toBe("in_progress");
+    expect(mentorFollowUpStatus(pending)).toBe("awaiting_mentor_review");
+    expect(pending.status).toBe("awaiting_mentor_review");
+    expect(stageProgressStatus({ status: "needs_correction", module_complete: false })).toBe("in_progress");
+    expect(stageProgressStatus({ status: "mastered", module_complete: true })).toBe("mastered");
+    expect(practicalDisplayStatus({ status: "passed" }, true)).toBe("approved");
+    expect(practicalDisplayStatus({ status: "passed" }, false)).toBe("passed");
+    expect(practicalDisplayStatus({ status: "needs_review" }, true)).toBe("awaiting_mentor_review");
+    expect(practicalDisplayStatus({ status: "needs_review" }, false)).toBe("awaiting_mentor_review");
+    expect(practicalDisplayStatus({ status: "failed", detail: { review_decision: "reject" } }, false)).toBe("needs_correction");
+    expect(practicalDisplayStatus({ status: "in_progress", detail: { review_decision: "reject" } }, false)).toBe("in_progress");
   });
 });

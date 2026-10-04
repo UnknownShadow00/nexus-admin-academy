@@ -70,7 +70,7 @@ export function buildStudentNavItems(v2Enabled) {
     { to: "/progress", label: "Progress" },
     { to: "/learning-v2", label: "My Course" },
     { label: "Extra Practice", children: [
-      { to: "/learning-path", label: "Legacy Learning Path" },
+      { to: "/learning-path", label: "Practice path" },
       { to: "/labs", label: "Labs" },
       { to: "/cli-labs", label: "CLI Labs" },
       { to: "/commands", label: "Command Reference" },
@@ -124,15 +124,23 @@ function NotFoundPage() {
   );
 }
 
-function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
+export function isCoursePracticalLocation(location) {
+  if (!location.pathname.startsWith("/labs/")) return false;
+  const params = new URLSearchParams(location.search);
+  return Boolean(params.get("v2Module") && params.get("v2Assessment"));
+}
+
+export function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
   const location = useLocation();
   const [openGroup, setOpenGroup] = useState(null);
+  const coursePractical = !isAdminRoute && isCoursePracticalLocation(location);
 
   useEffect(() => {
     setOpenGroup(null);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   const isPathActive = (path) => {
+    if (coursePractical && path === "/labs") return false;
     if (path === "/" || path === "/admin") return location.pathname === path;
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
@@ -155,6 +163,9 @@ function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
               </a>
             );
           }
+          if (coursePractical && item.to === "/learning-v2") {
+            return <Link key={item.to} to={item.to} aria-current="page" onClick={onNavigate} className={`${navLinkBase} ${navLinkActive}`}>{linkContent(item)}</Link>;
+          }
           return (
             <NavLink
               key={item.to}
@@ -176,7 +187,7 @@ function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
                 {item.label}
               </p>
               <div className="flex flex-col gap-1">
-                {item.children.map((child) => (
+                {item.children.map((child) => coursePractical && child.to === "/labs" ? <Link key={child.to} to={child.to} onClick={onNavigate} className={`${navLinkBase} ${navLinkInactive}`}>{linkContent(child)}</Link> : (
                   <NavLink
                     key={child.to}
                     to={child.to}
@@ -215,7 +226,7 @@ function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
             </button>
             {isOpen ? (
               <div className="absolute left-0 top-full z-40 mt-2 min-w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900" role="menu">
-                {item.children.map((child) => (
+                {item.children.map((child) => coursePractical && child.to === "/labs" ? <Link key={child.to} to={child.to} onClick={onNavigate} className={`block ${navLinkBase} ${navLinkInactive}`} role="menuitem">{linkContent(child)}</Link> : (
                   <NavLink
                     key={child.to}
                     to={child.to}

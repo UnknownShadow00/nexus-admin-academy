@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -152,8 +152,8 @@ describe("V2Interaction", () => {
     updated.interaction.version = 2;
     api.getV2Interaction.mockResolvedValueOnce({ data: updated });
     await userEvent.click(screen.getByRole("button", { name: "Reload interaction" }));
-    expect(await screen.findByText(/version 2/)).toBeVisible();
-    expect(screen.getByRole("textbox")).toHaveValue("");
+    await waitFor(() => expect(api.getV2Interaction).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveValue(""));
     expect(screen.getByRole("button", { name: "Check answer" })).toBeEnabled();
   });
 

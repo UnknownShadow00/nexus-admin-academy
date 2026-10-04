@@ -13,6 +13,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { createLabVmAccess, getLab, getLabVmStatus, startLab, startV2Lab, submitLab, submitV2Lab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
 import { setMonitoringContext } from "../monitoring/sentry";
 import V2NextStep from "../components/v2/V2NextStep";
+import V2Status from "../components/v2/V2Status";
 import { getCurrentStudent } from "../hooks/useAuth";
 
 const stage4Fields = [
@@ -316,9 +317,9 @@ function LabSession() {
       />
 
       <PrerequisiteLock lock={prerequisiteLock} />
-      {isStage4 && needsCorrection ? <section className="rounded-xl border border-rose-300 bg-rose-50 p-5 text-rose-900 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200" role="alert"><h2 className="text-xl font-bold">Needs correction</h2><p className="mt-2 whitespace-pre-wrap">Mentor feedback: {lab.review.feedback || "Review your evidence and submit an updated practical."}</p><a className="btn-primary mt-4 inline-flex" href="#stage4-form">Fix & resubmit</a></section> : null}
-      {isStage4 && waitingReview ? <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" role="status"><h2 className="text-xl font-bold">Awaiting mentor review</h2><V2NextStep moduleKey={v2ModuleKey} pendingReview /></section> : null}
-      {approvedPractical ? <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" role="status"><h2 className="text-xl font-bold">Approved practical</h2><p>Your mentor approved this work. The stage is Mastered when all other requirements are complete.</p><div className="mt-4"><V2NextStep moduleKey={v2ModuleKey} /></div></section> : null}
+      {isStage4 && needsCorrection ? <section className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/20 dark:text-amber-100" role="status"><h2 className="text-xl font-bold">Changes requested</h2><p className="mt-2">Your mentor left feedback on this practical. You can keep learning while you update it.</p><p className="mt-2 whitespace-pre-wrap">Mentor feedback: {lab.review.feedback || "Review your evidence and submit an updated practical."}</p><a className="btn-primary mt-4 inline-flex" href="#stage4-form">Fix & resubmit</a></section> : null}
+      {isStage4 && waitingReview ? <section className="rounded-xl border border-violet-300 bg-violet-50 p-5 text-violet-950 dark:border-violet-700 dark:bg-violet-950/50 dark:text-violet-100" role="status"><h2 className="text-xl font-bold">With your mentor</h2><V2NextStep moduleKey={v2ModuleKey} pendingReview /></section> : null}
+      {approvedPractical ? <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100" role="status"><h2 className="text-xl font-bold">Approved</h2><p>Your mentor approved this practical. Your stage is mastered only when the remaining requirements are complete.</p><div className="mt-4"><V2NextStep moduleKey={v2ModuleKey} /></div></section> : null}
       {isStage4 && !waitingReview && !approvedPractical ? <section className="panel text-base leading-7"><h2 className="text-xl font-bold">What to do</h2><ol className="mt-3 list-decimal space-y-2 pl-6"><li>Find the supplied practice file. Check its exact folder and path without moving or deleting it.</li><li>Observe the relevant Windows or application view. Record only what you actually see.</li><li>Upload two redacted screenshots: screenshot 1 shows the file and path; screenshot 2 shows the Windows or application observation.</li><li>Complete the five short support-note fields, then submit for mentor review.</li></ol>{typeof practiceFileUrl === "string" && practiceFileUrl.startsWith("/v2-interactions/") ? <a className="mt-4 inline-flex font-semibold text-blue-700 underline" href={practiceFileUrl} download={lab.success_criteria?.practice_file_name || undefined}>Download practice file</a> : null}</section> : null}
 
       {vmError ? <Banner variant="error">{vmError}</Banner> : null}
@@ -425,7 +426,7 @@ function LabSession() {
             <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               {isStage4 ? "Your support note" : isStructured ? "Answer the exercise" : "Work and explain"}
             </h2>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.cls}`}>{status.label}</span>
+            {isStage4 && (waitingReview || needsCorrection || approvedPractical) ? <V2Status status={waitingReview ? "awaiting_mentor_review" : needsCorrection ? "needs_correction" : "approved"} /> : <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.cls}`}>{status.label}</span>}
           </div>
 
           {lab.success_criteria?.evidence_case_workbench ? (
@@ -464,8 +465,8 @@ function LabSession() {
             />
           ) : isStage4 ? (
             <div className="space-y-4">
-              {stage4Fields.map(([key, label, hint]) => <div key={key}><label className="block text-base font-semibold" htmlFor={`practical-${key}`}>{label}</label><p className="mb-2 text-sm text-slate-500">{hint}</p><textarea id={`practical-${key}`} className="input-field min-h-24 w-full text-base" aria-invalid={Boolean(fieldErrors[key])} aria-describedby={fieldErrors[key] ? `practical-${key}-error` : undefined} value={guidedNote[key]} readOnly={Boolean(prerequisiteLock) || busy || waitingReview || approvedPractical} onChange={(event) => { const value = event.target.value; setGuidedNote((old) => { const next = { ...old, [key]: value }; localStorage.setItem(draftKey, JSON.stringify(next)); return next; }); setFieldErrors((old) => ({ ...old, [key]: "" })); }} />{fieldErrors[key] ? <p id={`practical-${key}-error`} className="text-sm text-rose-700" role="alert">{fieldErrors[key]}</p> : null}</div>)}
-              {approvedPractical ? <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">Reopen practical</button> : !waitingReview ? <button className="btn-primary" onClick={handleSubmit} disabled={busy || Boolean(prerequisiteLock)} type="button">{busy ? "Submitting..." : needsCorrection ? "Resubmit practical" : "Submit practical"}</button> : <p className="font-semibold text-emerald-700">Submitted — waiting for mentor review.</p>}
+              {stage4Fields.map(([key, label, hint]) => <div key={key}><label className="block text-base font-semibold" htmlFor={`practical-${key}`}>{label}</label><p className="mb-2 text-sm text-slate-600 dark:text-slate-300">{hint}</p><textarea id={`practical-${key}`} className="input-field min-h-24 w-full text-base" aria-invalid={Boolean(fieldErrors[key])} aria-describedby={fieldErrors[key] ? `practical-${key}-error` : undefined} value={guidedNote[key]} readOnly={Boolean(prerequisiteLock) || busy || waitingReview || approvedPractical} onChange={(event) => { const value = event.target.value; setGuidedNote((old) => { const next = { ...old, [key]: value }; localStorage.setItem(draftKey, JSON.stringify(next)); return next; }); setFieldErrors((old) => ({ ...old, [key]: "" })); }} />{fieldErrors[key] ? <p id={`practical-${key}-error`} className="text-sm text-rose-700 dark:text-rose-300" role="alert">{fieldErrors[key]}</p> : null}</div>)}
+              {approvedPractical ? <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">Reopen practical</button> : !waitingReview ? <button className="btn-primary" onClick={handleSubmit} disabled={busy || Boolean(prerequisiteLock)} type="button">{busy ? "Submitting..." : needsCorrection ? "Resubmit practical" : "Submit practical"}</button> : <p className="font-semibold text-violet-900 dark:text-violet-100">With your mentor — your practical is read-only during review.</p>}
             </div>
           ) : (
             <>

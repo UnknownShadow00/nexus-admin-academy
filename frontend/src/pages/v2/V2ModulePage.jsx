@@ -7,15 +7,17 @@ import V2ResourceCard from "../../components/v2/V2ResourceCard";
 import V2Status from "../../components/v2/V2Status";
 import V2LockedActivity from "../../components/v2/V2LockedActivity";
 import { getV2Module } from "../../services/api";
+import { mentorFollowUpStatus, practicalDisplayStatus, stageProgressStatus } from "../../components/ui/statusFoundation";
 
 function AssessmentCard({ item, moduleKey, Icon, action, route, beginner = false }) {
   if (!item.available || !route) return <V2LockedActivity activity={item} moduleRoute={`/learning-v2/modules/${moduleKey}`} />;
-  const needsCorrection = item.role === "practical" && (item.progress.status === "failed" || (beginner && item.progress.status === "in_progress")) && item.progress.detail?.review_decision === "reject";
+  const displayStatus = item.role === "practical" ? practicalDisplayStatus(item.progress, beginner) : item.progress.status;
+  const needsCorrection = displayStatus === "needs_correction";
   return <div className="panel flex min-h-40 flex-col">
-    <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><Icon size={21} aria-hidden="true" /></span><V2Status status={needsCorrection ? "needs_correction" : item.role === "practical" && item.progress.status === "needs_review" ? "awaiting_mentor_review" : item.progress.status} /></div>
+    <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><Icon size={21} aria-hidden="true" /></span><V2Status status={displayStatus} /></div>
     <h3 className="mt-4 font-bold text-slate-950 dark:text-white">{item.title}</h3>
     {item.question_count ? <p className="mt-1 text-sm text-slate-500">{item.question_count} questions · {item.pass_percent}% to pass</p> : null}
-    <Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={route(item, moduleKey)}>{item.role === "practical" && item.progress.status === "needs_review" ? "Awaiting mentor review" : needsCorrection ? "Fix & resubmit" : action} →</Link>
+    <Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={route(item, moduleKey)}>{displayStatus === "awaiting_mentor_review" ? "View practical status" : needsCorrection ? "Fix & resubmit" : displayStatus === "approved" ? "Review practical" : action} →</Link>
   </div>;
 }
 
@@ -30,20 +32,21 @@ export default function V2ModulePage() {
   const byRole = (role) => data.assessments.find((item) => item.role === role);
   const moduleQuiz = byRole("module_quiz");
   const practicals = data.assessments.filter((item) => item.role === "practical");
-  const correction = practicals.find((item) => (item.progress.status === "failed" || (data.certification.version.key === "nexus_beginner_aplus_v1" && item.progress.status === "in_progress")) && item.progress.detail?.review_decision === "reject");
+  const beginner = data.certification.version.key === "nexus_beginner_aplus_v1";
+  const correction = practicals.find((item) => practicalDisplayStatus(item.progress, beginner) === "needs_correction");
   const serviceDesk = byRole("service_desk");
   const examCode = data.certification.version.exam_codes?.[0];
-  const beginner = data.certification.version.key === "nexus_beginner_aplus_v1";
+  const mentorStatus = beginner ? mentorFollowUpStatus(data.progress) : null;
   return <main className="mx-auto max-w-6xl space-y-8 p-4 pb-20 sm:p-6">
     <V2Breadcrumbs certification={data.certification} module={data.module} />
     <header className="max-w-4xl">
       <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{beginner ? "Beginner A+ foundation" : examCode} · {data.certification.domain?.title}</p>
       <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">{data.module.title}</h1>
-      <div className="mt-3 flex gap-2"><V2Status status={data.progress.status} />{data.progress.review_due ? <V2Status status="review_due" /> : null}</div>
-      {beginner && data.progress.status === "awaiting_mentor_review" && data.continue.kind === "next_stage" ? <p className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">Awaiting mentor review. You can keep learning.</p> : null}
-      {beginner && data.progress.status === "needs_correction" ? <p className="mt-3 text-sm font-medium text-rose-700 dark:text-rose-300">Needs correction. {correction?.progress?.detail?.review_feedback}</p> : null}
+      <div className="mt-3 flex flex-wrap gap-2"><V2Status status={beginner ? stageProgressStatus(data.progress) : data.progress.status} />{mentorStatus ? <V2Status status={mentorStatus} /> : null}{data.progress.review_due ? <V2Status status="review_due" /> : null}</div>
+      {mentorStatus === "awaiting_mentor_review" ? <p className="mt-3 text-sm font-medium text-violet-900 dark:text-violet-200">Your practical is with your mentor.{data.continue.kind === "next_stage" ? " You can keep learning." : ""}</p> : null}
+      {mentorStatus === "needs_correction" ? <p className="mt-3 text-sm font-medium text-amber-950 dark:text-amber-200">Your mentor requested changes to the practical. You can keep learning while you update it.{correction?.progress?.detail?.review_feedback ? ` Feedback: ${correction.progress.detail.review_feedback}` : ""}</p> : null}
       <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">{data.module.description}</p>
-      <Link className="btn-primary mt-6 inline-flex min-h-12 items-center gap-2" to={data.continue.route}>{data.continue.label}<ArrowRight size={18} aria-hidden="true" /></Link>
+      <Link className="btn-primary mt-6 inline-flex min-h-12 items-center gap-2" to={data.continue.route}>{data.continue.kind === "review_pending" ? "View practical status" : data.continue.label}<ArrowRight size={18} aria-hidden="true" /></Link>
     </header>
     <section aria-labelledby="learn-heading">
       <div className="mb-4 flex items-center gap-3"><BookOpen className="text-blue-600" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Learn</p><h2 id="learn-heading" className="text-2xl font-bold">Build the foundation</h2></div></div>
@@ -72,7 +75,7 @@ export default function V2ModulePage() {
       {!beginner ? <div className="panel"><p className="text-sm text-slate-500">Lessons</p><p className="mt-1 text-xl font-bold">{data.progress.lessons.completed} / {data.progress.lessons.total}</p></div> : null}
       <div className="panel"><p className="text-sm text-slate-500">Quick Checks</p><p className="mt-1 text-xl font-bold">{data.progress.quick_checks.completed} / {data.progress.quick_checks.total}</p></div>
       <div className="panel"><p className="text-sm text-slate-500">{beginner ? "Final checkpoint" : "Module Quiz"}</p><p className="mt-1 text-xl font-bold">{data.progress.module_quiz?.activity?.score != null ? `${data.progress.module_quiz.activity.score}%${data.progress.module_quiz.activity.passed ? " ✓" : ""}` : "Not started"}</p></div>
-      {practicals.map((item) => <div className="panel" key={item.key}><p className="text-sm text-slate-500">{item.title}</p><div className="mt-2"><V2Status status={item.progress.status} /></div></div>)}
+      {practicals.map((item) => <div className="panel" key={item.key}><p className="text-sm text-slate-600 dark:text-slate-300">{item.title}</p><div className="mt-2"><V2Status status={practicalDisplayStatus(item.progress, beginner)} /></div></div>)}
       {serviceDesk ? <div className="panel"><p className="text-sm text-slate-500">Service Desk</p><div className="mt-2"><V2Status status={data.progress.service_desk?.activity?.status} /></div></div> : null}
       {data.explain_prompts.length ? <div className="panel"><p className="text-sm text-slate-500">Explain</p><p className="mt-1 text-xl font-bold">{data.progress.explain_prompts.completed} / {data.progress.explain_prompts.total}</p></div> : null}
     </section>

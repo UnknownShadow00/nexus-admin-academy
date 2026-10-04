@@ -1,8 +1,8 @@
-import { Award, BadgeCheck, CheckCircle2, Circle, Clock3, Eye, FilePenLine, Hourglass, Lock, RotateCcw, Search, Send, Zap } from "lucide-react";
+import { Award, BadgeCheck, CheckCircle2, Circle, Clock3, Eye, FilePenLine, Hourglass, Lock, MessageSquareText, RotateCcw, Search, Send, Zap } from "lucide-react";
 import { difficultyConfig, iconSizes, statusConfig } from "../../utils/theme";
 import { getStatusPresentation, statusFoundation, statusToneClasses } from "./statusFoundation";
 
-const iconMap = { Award, BadgeCheck, CheckCircle2, Circle, Clock3, Eye, FilePenLine, Hourglass, Lock, RotateCcw, Search, Send, Zap };
+const iconMap = { Award, BadgeCheck, CheckCircle2, Circle, Clock3, Eye, FilePenLine, Hourglass, Lock, MessageSquareText, RotateCcw, Search, Send, Zap };
 const pill = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium";
 
 export function StatusBadge({ status }) {

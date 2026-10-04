@@ -20,7 +20,7 @@ it("opens a Stage 4 teaching card in a closable, keyboard accessible drawer", as
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(opener).toHaveFocus();
   expect(recordV2Resource).toHaveBeenCalledWith("stage4", "res.stage4", { opened: true }, { suppressToast: true });
-  expect(await screen.findByText("Viewed / Opened")).toBeVisible();
+  expect(await screen.findByText("Opened")).toBeVisible();
   expect(screen.getByRole("button", { name: "View again" })).toBeVisible();
 });
 
@@ -75,5 +75,5 @@ it("keeps an opened video in progress until watched is reported", async () => {
   render(<V2ResourceCard resource={{ ...resource, type: "video", provider: "External", url: "https://example.org/video" }} moduleKey="stage4" onChanged={vi.fn()} />);
   fireEvent.click(screen.getByRole("link", { name: /Open video/ }));
   expect(await screen.findByText("In progress")).toBeVisible();
-  expect(screen.queryByText("Viewed / Opened")).not.toBeInTheDocument();
+  expect(screen.queryByText("Opened")).not.toBeInTheDocument();
 });

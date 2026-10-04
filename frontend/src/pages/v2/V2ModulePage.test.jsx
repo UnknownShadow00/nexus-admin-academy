@@ -29,7 +29,7 @@ describe("V2ModulePage", () => {
     expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
     expect(screen.getByText("First dynamic lesson")).toBeVisible();
     expect(screen.getByText("Second dynamic lesson")).toBeVisible();
-    expect(screen.getByText("Completed")).toBeVisible();
+    expect(screen.getByText("Done")).toBeVisible();
     expect(screen.queryByText("Mastered")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/next-dynamic");
     expect(api.getV2Module).toHaveBeenCalledWith("module.dynamic", { suppressToast: true });
@@ -46,6 +46,21 @@ describe("V2ModulePage", () => {
     expect(await screen.findByLabelText("Hands-on practical unavailable")).toHaveTextContent("This activity has not been prepared for students yet.");
     expect(screen.getByLabelText("Hands-on practical unavailable")).toHaveTextContent("Choose another available activity");
   });
+  it("preserves mentor pending and rejected practical actions for non-beginner modules", async () => {
+    api.getV2Module.mockResolvedValueOnce({ data: {
+      ...data,
+      assessments: [
+        { key: "pending", role: "practical", title: "Pending practical", available: true, progress: { status: "needs_review" } },
+        { key: "rejected", role: "practical", title: "Rejected practical", available: true, progress: { status: "failed", detail: { review_decision: "reject" } } },
+      ],
+    } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
+    expect(screen.getAllByText("With your mentor").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Changes requested").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /View practical status/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/pending");
+    expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/rejected");
+  });
   it("shows mentor review separately from the next learning stage and lists every practical", async () => {
     api.getV2Module.mockResolvedValueOnce({ data: {
       ...data,
@@ -58,7 +73,10 @@ describe("V2ModulePage", () => {
       continue: { kind: "next_stage", label: "Continue learning", title: "Next stage", route: "/learning-v2/modules/module.nexus.beginner.stage2" },
     } });
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByText("Awaiting mentor review. You can keep learning.")).toBeVisible();
+    expect(await screen.findByText("Your practical is with your mentor. You can keep learning.")).toBeVisible();
+    expect(screen.getAllByText("In progress").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("With your mentor").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/module.nexus.beginner.stage2");
     expect(screen.getAllByText("First practical").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Second practical").length).toBeGreaterThan(0);
@@ -71,7 +89,7 @@ describe("V2ModulePage", () => {
     } });
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
     expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
-    expect(screen.queryByText("Awaiting mentor review. You can keep learning.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Your practical is with your mentor. You can keep learning.")).not.toBeInTheDocument();
   });
   it("does not claim later stage access at the terminal stage even with a grant", async () => {
     api.getV2Module.mockResolvedValueOnce({ data: {
@@ -82,7 +100,7 @@ describe("V2ModulePage", () => {
     } });
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
     expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
-    expect(screen.queryByText("Awaiting mentor review. You can keep learning.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Your practical is with your mentor. You can keep learning.")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Continue learning" })).not.toBeInTheDocument();
   });
   it("keeps correction feedback and resubmit action while a rejected practical is being edited", async () => {
@@ -95,7 +113,7 @@ describe("V2ModulePage", () => {
       continue: { kind: "next_stage", label: "Continue learning", route: "/learning-v2/modules/next" },
     } });
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByText("Needs correction. Show the application view")).toBeVisible();
+    expect(await screen.findByText(/Your mentor requested changes to the practical.*Feedback: Show the application view/)).toBeVisible();
     expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/correction");
     expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/next");
   });
