@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,115 +6,120 @@ const api = vi.hoisted(() => ({ getV2Module: vi.fn() }));
 vi.mock("../../services/api", () => api);
 import V2ModulePage from "./V2ModulePage";
 
-const data = {
-  certification: { name: "Example Cert", version: { exam_codes: ["EX-1"] }, domain: { title: "Support" } },
-  module: { key: "module.dynamic", title: "A module from the API", description: "A useful skill promise." },
-  lessons: [
-    { key: "lesson.dynamic.one", title: "First dynamic lesson", estimated_minutes: 8, importance: "job_critical", progress: { status: "completed" } },
-    { key: "lesson.dynamic.two", title: "Second dynamic lesson", estimated_minutes: 9, progress: { status: "not_started" } },
-  ],
+const beginner = { key: "beginner-aplus", name: "Beginner A+ Foundation", version: { key: "nexus_beginner_aplus_v1", label: "Beginner A+" } };
+const base = (overrides = {}) => ({
+  certification: beginner,
+  module: { key: "module.dynamic", title: "Stage 4 — Everyday Windows Support", description: "Practice everyday support work." },
+  lessons: [{ key: "lesson.one", title: "Find and protect work", group_status: "in_progress", progress: { status: "not_started" },
+    resources: [{ key: "resource.one", title: "Picture — Find without moving", required: true, status: "viewed" }],
+    quick_check: { key: "check.one", title: "Checkpoint — Find and protect work", available: true, progress: { status: "passed" } } }],
+  interactions: [{ interaction: { key: "practice.one", title: "Locate the supplied file safely", lesson_key: "lesson.one", required: true }, progress: { status: "passed", passed: true } }],
   assessments: [
-    { key: "quiz.dynamic", role: "module_quiz", title: "Module Quiz", question_count: 7, pass_percent: 70, available: true, progress: { status: "not_started" } },
+    { key: "final", role: "module_quiz", title: "Checkpoint — Applications and Windows clues", available: true, progress: { status: "not_started" } },
+    { key: "support", role: "practical", title: "Guided practical — Locate, observe, and document", available: true, progress: { status: "not_started" } },
   ],
-  explain_prompts: [],
-  progress: { lessons: { completed: 1, total: 2 }, quick_checks: { completed: 0, total: 2 }, module_quiz: null, practical: null, service_desk: null, explain_prompts: { completed: 0, total: 0 } },
-  continue: { label: "Continue learning", route: "/next-dynamic", title: "Second dynamic lesson" },
+  module_resources: [], explain_prompts: [],
+  progress: { module_complete: false, status: "in_progress", review_due: false },
+  continue: { kind: "lesson", label: "Continue learning", title: "Find and protect work", route: "/learning-v2/modules/module.dynamic/lessons/lesson.one" },
+  ...overrides,
+});
+const show = (data = base()) => {
+  api.getV2Module.mockResolvedValue({ data });
+  return render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes>
+    <Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} />
+  </Routes></MemoryRouter>);
 };
 
-describe("V2ModulePage", () => {
-  beforeEach(() => api.getV2Module.mockResolvedValue({ data }));
+describe("Stage work plan", () => {
+  beforeEach(() => vi.clearAllMocks());
   afterEach(cleanup);
-  it("renders curriculum and Continue entirely from the API", async () => {
-    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /><Route path="/next-dynamic" element={<p>Next activity</p>} /></Routes></MemoryRouter>);
-    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
-    expect(screen.getByText("First dynamic lesson")).toBeVisible();
-    expect(screen.getByText("Second dynamic lesson")).toBeVisible();
-    expect(screen.getByText("Done")).toBeVisible();
-    expect(screen.queryByText("Mastered")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/next-dynamic");
+
+  it("follows the authored learning sequence and exposes only one primary next action", async () => {
+    show();
+    expect(await screen.findByRole("heading", { name: "Stage 4 — Everyday Windows Support" })).toBeVisible();
+    const list = screen.getByRole("list", { name: "Stage learning sequence" });
+    expect(within(list).getAllByRole("link").map((link) => link.textContent)).toEqual([
+      "Find and protect work", "Picture — Find without moving", "Locate the supplied file safely",
+      "Checkpoint — Find and protect work", "Checkpoint — Applications and Windows clues", "Guided practical — Locate, observe, and document",
+    ]);
+    expect(screen.getByRole("link", { name: "Continue learning" })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/lessons/lesson.one");
+    expect(within(list).getByText("Opened")).toBeVisible();
+    expect(screen.getByRole("link", { name: "My Course" })).toHaveAttribute("href", "/learning-v2");
     expect(api.getV2Module).toHaveBeenCalledWith("module.dynamic", { suppressToast: true });
   });
-  it("shows a readable API error instead of a blank screen", async () => {
+
+  it("shows a server-unavailable activity without offering its route", async () => {
+    const data = base({ assessments: [{ key: "support", role: "practical", title: "Support practical", available: false,
+      unavailable: { reason: "This activity has not been prepared for students yet.", required_action: "Choose another available activity in this module." }, progress: { status: "not_started" } }] });
+    show(data);
+    const unavailable = await screen.findByLabelText("Support practical unavailable");
+    expect(unavailable).toHaveTextContent("This activity has not been prepared for students yet.");
+    expect(unavailable).toHaveTextContent("Choose another available activity");
+    expect(within(unavailable).queryByRole("link", { name: "Support practical" })).not.toBeInTheDocument();
+  });
+
+  it("keeps pending practical follow-up separate from stage mastery and continuation", async () => {
+    const data = base({ assessments: [{ key: "support", role: "practical", title: "Support practical", available: true, progress: { status: "needs_review" } }],
+      progress: { module_complete: false, status: "awaiting_mentor_review", continuation_granted: true },
+      continue: { kind: "next_stage", label: "Continue learning", title: "Next available stage", route: "/learning-v2/modules/real-next" } });
+    show(data);
+    const followUp = await screen.findByRole("heading", { name: "Mentor follow-up" });
+    expect(followUp).toBeVisible();
+    expect(screen.getAllByText("With your mentor").length).toBeGreaterThan(0);
+    expect(screen.getByText("Not yet mastered")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Continue learning" })).toHaveAttribute("href", "/learning-v2/modules/real-next");
+  });
+
+  it("shows correction feedback in amber and preserves the practical route", async () => {
+    const data = base({ assessments: [{ key: "support", role: "practical", title: "Support practical", available: true,
+      progress: { status: "in_progress", detail: { review_decision: "reject", review_feedback: "Show the verified result" } } }],
+      progress: { module_complete: false, status: "needs_correction", continuation_granted: true },
+      continue: { kind: "next_stage", label: "Continue learning", title: "Next stage", route: "/learning-v2/modules/next" } });
+    show(data);
+    expect(await screen.findByText("Show the verified result")).toBeVisible();
+    expect(screen.getAllByText("Changes requested").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/support");
+    expect(screen.getByRole("link", { name: "Continue learning" })).toHaveAttribute("href", "/learning-v2/modules/next");
+  });
+
+  it("shows Approved practical without claiming stage mastery", async () => {
+    const data = base({ assessments: [{ key: "support", role: "practical", title: "Support practical", available: true, progress: { status: "passed" } }],
+      progress: { module_complete: false, status: "in_progress" } });
+    show(data);
+    expect(await screen.findByText("Approved")).toBeVisible();
+    expect(screen.getByText("Not yet mastered")).toBeVisible();
+    expect(screen.queryByText("Mastered")).not.toBeInTheDocument();
+  });
+
+  it("shows Mastered only when the server says so and promises no terminal successor", async () => {
+    const data = base({ progress: { module_complete: true, status: "mastered" },
+      continue: { kind: "complete", label: "Review module", title: "Module mastered", route: "/learning-v2/modules/module.dynamic" } });
+    show(data);
+    expect((await screen.findAllByText("Mastered")).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Review stage" })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic");
+    expect(screen.queryByText(/Stage 5/)).not.toBeInTheDocument();
+  });
+
+  it("keeps a terminal pending stage read-only and avoids a next-stage claim", async () => {
+    const data = base({ assessments: [{ key: "support", role: "practical", title: "Support practical", available: true, progress: { status: "needs_review" } }],
+      progress: { module_complete: false, status: "awaiting_mentor_review", continuation_granted: true },
+      continue: { kind: "review_pending", label: "Awaiting mentor review", title: "Support practical", route: "/learning-v2/modules/module.dynamic/practical/support" } });
+    show(data);
+    expect(await screen.findByRole("heading", { name: "Mentor follow-up" })).toBeVisible();
+    expect(screen.getAllByRole("link", { name: "View practical status" }).length).toBeGreaterThan(0);
+    expect(screen.queryByText("A later stage is available while this practical is with your mentor.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Stage 5/)).not.toBeInTheDocument();
+  });
+
+  it("preserves non-beginner practical review display and API errors", async () => {
+    const data = base({ certification: { key: "aplus", name: "CompTIA A+", version: { key: "core1", label: "Core 1" } },
+      assessments: [{ key: "support", role: "practical", title: "Support practical", available: true, progress: { status: "failed", detail: { review_decision: "reject" } } }] });
+    show(data);
+    expect((await screen.findAllByText("Changes requested")).length).toBeGreaterThan(0);
+    expect(screen.getByRole("list", { name: "Module learning sequence" })).toBeVisible();
+    cleanup();
     api.getV2Module.mockRejectedValueOnce({ userMessage: "Network unavailable" });
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
     expect(await screen.findByRole("alert")).toHaveTextContent("Network unavailable");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Try again" })).toBeVisible());
-  });
-  it("explains why an unavailable activity is locked and what to do next", async () => {
-    api.getV2Module.mockResolvedValueOnce({ data: { ...data, assessments: [{ key: "practical", role: "practical", title: "Hands-on practical", available: false, unavailable: { reason: "This activity has not been prepared for students yet.", required_action: "Choose another available activity in this module." }, progress: { status: "not_started" } }] } });
-    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByLabelText("Hands-on practical unavailable")).toHaveTextContent("This activity has not been prepared for students yet.");
-    expect(screen.getByLabelText("Hands-on practical unavailable")).toHaveTextContent("Choose another available activity");
-  });
-  it("preserves mentor pending and rejected practical actions for non-beginner modules", async () => {
-    api.getV2Module.mockResolvedValueOnce({ data: {
-      ...data,
-      assessments: [
-        { key: "pending", role: "practical", title: "Pending practical", available: true, progress: { status: "needs_review" } },
-        { key: "rejected", role: "practical", title: "Rejected practical", available: true, progress: { status: "failed", detail: { review_decision: "reject" } } },
-      ],
-    } });
-    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
-    expect(screen.getAllByText("With your mentor").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Changes requested").length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /View practical status/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/pending");
-    expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/rejected");
-  });
-  it("shows mentor review separately from the next learning stage and lists every practical", async () => {
-    api.getV2Module.mockResolvedValueOnce({ data: {
-      ...data,
-      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", label: "Beginner", exam_codes: [] } },
-      assessments: [
-        { key: "first", role: "practical", title: "First practical", available: true, progress: { status: "needs_review" } },
-        { key: "second", role: "practical", title: "Second practical", available: true, progress: { status: "passed" } },
-      ],
-      progress: { ...data.progress, status: "awaiting_mentor_review", continuation_granted: true },
-      continue: { kind: "next_stage", label: "Continue learning", title: "Next stage", route: "/learning-v2/modules/module.nexus.beginner.stage2" },
-    } });
-    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByText("Your practical is with your mentor. You can keep learning.")).toBeVisible();
-    expect(screen.getAllByText("In progress").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("With your mentor").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/module.nexus.beginner.stage2");
-    expect(screen.getAllByText("First practical").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Second practical").length).toBeGreaterThan(0);
-  });
-  it("does not claim later stage access before a continuation grant exists", async () => {
-    api.getV2Module.mockResolvedValueOnce({ data: {
-      ...data,
-      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", exam_codes: [] } },
-      progress: { ...data.progress, status: "awaiting_mentor_review", continuation_granted: false },
-    } });
-    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
-    expect(screen.queryByText("Your practical is with your mentor. You can keep learning.")).not.toBeInTheDocument();
-  });
-  it("does not claim later stage access at the terminal stage even with a grant", async () => {
-    api.getV2Module.mockResolvedValueOnce({ data: {
-      ...data,
-      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", exam_codes: [] } },
-      progress: { ...data.progress, status: "awaiting_mentor_review", continuation_granted: true },
-      continue: { kind: "review_pending", label: "Awaiting mentor review", route: "/learning-v2/modules/module.dynamic/practical/observation" },
-    } });
-    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
-    expect(screen.queryByText("Your practical is with your mentor. You can keep learning.")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Continue learning" })).not.toBeInTheDocument();
-  });
-  it("keeps correction feedback and resubmit action while a rejected practical is being edited", async () => {
-    api.getV2Module.mockResolvedValueOnce({ data: {
-      ...data,
-      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", exam_codes: [] } },
-      assessments: [{ key: "correction", role: "practical", title: "Correct this practical", available: true,
-        progress: { status: "in_progress", detail: { review_decision: "reject", review_feedback: "Show the application view" } } }],
-      progress: { ...data.progress, status: "needs_correction", continuation_granted: true },
-      continue: { kind: "next_stage", label: "Continue learning", route: "/learning-v2/modules/next" },
-    } });
-    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
-    expect(await screen.findByText(/Your mentor requested changes to the practical.*Feedback: Show the application view/)).toBeVisible();
-    expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/correction");
-    expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/next");
   });
 });

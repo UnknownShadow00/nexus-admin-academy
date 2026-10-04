@@ -28,11 +28,18 @@ test("authenticated student can use the live V2 shell and durable activity surfa
   await expect(page.getByText("Required").first()).toBeVisible();
   await page.goto("/learning-v2");
 
-  await page.getByRole("link", { name: /Continue learning/ }).click();
+  await page.getByRole("link", { name: /Continue learning/ }).click({ timeout: 10000 });
   await expect(page.getByRole("heading", { name: "IPv4 Configuration Basics", exact: true })).toBeVisible();
   await expect(page.getByText("Required").first()).toBeVisible();
-  await page.getByRole("link", { name: /Open required resource/ }).click();
-  await page.getByRole("button", { name: "I finished this" }).click();
+  // Keep the external provider out of this disposable browser run. The click
+  // still exercises Nexus resource tracking and the new-tab affordance.
+  await page.context().route("https://www.professormesser.com/**", (route) => route.fulfill({
+    status: 200, contentType: "text/html", body: "<title>Disposable resource viewer</title>",
+  }));
+  const resourceTab = page.waitForEvent("popup");
+  await page.getByRole("link", { name: /Open video/ }).click({ timeout: 10000 });
+  await (await resourceTab).close();
+  await page.getByRole("button", { name: "I watched this" }).click();
   await page.getByRole("button", { name: "Mark lesson complete" }).click();
   await page.reload();
   await expect(page.getByText("Done", { exact: true }).first()).toBeVisible();
@@ -64,8 +71,8 @@ test("authenticated student can use the live V2 shell and durable activity surfa
   await page.getByRole("link", { name: "Back to module" }).click();
   await expect(page.getByRole("heading", { name: moduleTitle }).first()).toBeVisible();
 
-  const secondLesson = page.getByRole("link", { name: /DHCP and APIPA/ });
-  await secondLesson.click();
+  const secondLesson = page.getByRole("link", { name: "DHCP and APIPA", exact: true });
+  await secondLesson.click({ timeout: 10000 });
   await expect(page.getByRole("heading", { name: "DHCP and APIPA", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "DHCP and APIPA", exact: true })).toBeVisible();
@@ -106,7 +113,7 @@ test("authenticated student can use the live V2 shell and durable activity surfa
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
   await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration");
-  await expect(page.getByText("1 / 5")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Module learning sequence" })).toBeVisible();
   await expect(page.getByText("Done", { exact: true }).first()).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
