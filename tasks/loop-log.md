@@ -3094,3 +3094,21 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/components/practical/Stage4PracticalWorkspace.jsx, frontend/src/pages/LabPage.jsx, frontend/src/pages/LabPage.test.jsx, frontend/src/styles.css, frontend/tests/e2e/practical-workspace.spec.js, tasks/loop-log.md; /tmp/nexus-ui-pr6-review-20261005-012100/ (outside git).
 - Result: PASS — PR #55 merged safely; 200 frontend tests, 3 focused Playwright tests, production build, npm audit zero vulnerabilities, CLI validate/sanity, fixture-backed light/dark desktop/mobile visual review and accessibility checks; Stage 4 bank and Alembic head unchanged.
 - Next: Push and open PR 6, wait for GitHub CI/review, keep PR 6 unmerged, and complete read-only mentor and independent Service Desk follow-on reports.
+
+## [2026-10-05 02:54:00 UTC] Task Completed
+- Task: Merged PR #56 after exact remote gates and implemented the mentor Practical review workspace with a selectable queue, admin-authorized evidence preview, five-field support note, rubric, feedback, and confirmed approve/request-changes decisions.
+- Files changed: frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/pages/admin/MentorPracticalReview.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, frontend/src/components/ui/Badge.jsx, frontend/tests/e2e/mentor-practical-review.spec.js, frontend/src/styles.css, tasks/loop-log.md; /tmp/nexus-ui-pr7-review-20261005-024800/ (outside git).
+- Result: PASS — PR #56 merged safely; 207 frontend tests, 5 relevant Playwright tests, 3 backend contract tests, production build, npm audit zero vulnerabilities, CLI validate/sanity, 26 disposable visual captures, Stage 4 bank and Alembic head unchanged.
+- Next: Push and open PR 7, wait for GitHub CI/review, keep PR 7 unmerged, and complete read-only PR 8 and Service Desk plans.
+
+## [2026-10-05 03:17:43 UTC] Task Completed
+- Task: Fixed PR 7 browser CI regression by retaining the shared status badge import for populated admin lab and VM rows and aligning the admin navigation assertion with the new page title.
+- Files changed: frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS — 208 frontend tests and production build; focused populated admin-row regression test passes. Local browser stack reproduced the original failure; a later rerun hit Chromium ERR_INSUFFICIENT_RESOURCES on this crowded host, so hosted CI is the remaining browser gate.
+- Next: Push fix, wait for all PR 7 CI/review, keep the PR unmerged, and finish read-only PR 8/Service Desk planning.
+
+## [2026-10-05 03:21:44 UTC] Task Completed
+- Task: Addressed automated PR 7 review by locking queue selection during mentor decision submission and canceling stale confirmation when the review queue refreshes.
+- Files changed: frontend/src/pages/admin/MentorPracticalReview.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, tasks/loop-log.md.
+- Result: PASS — focused race tests, full frontend suite 210/210, production build, and git diff --check; no backend or business-state change.
+- Next: Push and wait for GitHub CI and review, leave PR 7 open, and deliver the read-only follow-on plans outside git.
