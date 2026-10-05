@@ -1,12 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  captureV2LaunchContextForTicket,
   launchContextAppliesToCurrentTicket,
   workspaceHref,
 } from './workspace-navigation';
 
 const launch =
   'returnTo=%2Flearning-v2%2Fmodules%2Fip&v2ModuleKey=module.ip&v2AssessmentKey=assess.ip&tool=directory&ticket=INC2504';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('Service Desk workspace navigation', () => {
   it('keeps launch context tied to the original ticket across queue and ticket switches', () => {
@@ -49,5 +52,23 @@ describe('Service Desk workspace navigation', () => {
 
   it('leaves ordinary ticket routes clean', () => {
     expect(workspaceHref('/tickets/INC2501', '')).toBe('/tickets/INC2501');
+  });
+
+  it('captures V2 context only for the action ticket before a switch', () => {
+    const location = {
+      pathname: '/service-desk/tickets/INC2504',
+      search: `?${launch}&v2LaunchTicket=INC2504`,
+    };
+    vi.stubGlobal('window', { location });
+
+    expect(captureV2LaunchContextForTicket('INC2504')).toEqual({
+      moduleKey: 'module.ip',
+      assessmentKey: 'assess.ip',
+    });
+    expect(captureV2LaunchContextForTicket('INC2501')).toBeNull();
+
+    location.pathname = '/service-desk/tickets/INC2501';
+    expect(captureV2LaunchContextForTicket('INC2504')).toBeNull();
+    expect(captureV2LaunchContextForTicket('INC2501')).toBeNull();
   });
 });

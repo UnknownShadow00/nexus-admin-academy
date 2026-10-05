@@ -1,3 +1,5 @@
+import type { V2LaunchContext } from './workspace-navigation';
+
 export type NexusSyncStatus = 'saved' | 'saving' | 'problem';
 
 export interface NexusOutboxItem {
@@ -16,6 +18,7 @@ export interface NexusOutboxItem {
   /** A resume-only write: no simulation action is submitted to Nexus. */
   isSnapshot?: boolean;
   ticketId: string;
+  v2LaunchContext?: V2LaunchContext | null;
 }
 
 export interface NexusOutbox {
@@ -35,6 +38,10 @@ function isItem(value: unknown): value is NexusOutboxItem {
     (typeof value.assignmentId === 'string' || typeof value.assignmentId === 'number') &&
     typeof value.ticketId === 'string' &&
     typeof value.isHint === 'boolean' &&
+    (value.v2LaunchContext === undefined || value.v2LaunchContext === null ||
+      (isRecord(value.v2LaunchContext) &&
+        typeof value.v2LaunchContext.moduleKey === 'string' &&
+        typeof value.v2LaunchContext.assessmentKey === 'string')) &&
     (value.isSnapshot === undefined || typeof value.isSnapshot === 'boolean') &&
     isRecord(value.event) && typeof value.event.idempotency_key === 'string' &&
     typeof value.event.event_type === 'string' && typeof value.event.tool === 'string' &&

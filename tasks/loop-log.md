@@ -3148,3 +3148,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/service-desk-integration.spec.js, frontend/tests/e2e/sentry-csp.spec.js, tasks/loop-log.md.
 - Result: PASS — two affected integration cases and the authenticated Service Desk navigation smoke case on a fresh disposable stack, JavaScript syntax checks, and git diff --check; no product or backend changes.
 - Next: Push the test fix, wait for all GitHub CI and review, and keep PR #59 open and unmerged.
+
+## [2026-10-05 21:55 UTC] Task Completed
+- Task: Fixed the PR #59 offline retry review finding by persisting each queued action's original V2 curriculum launch context and using it when starting the saved attempt after a ticket switch.
+- Files changed: service-desk-app/apps/web/components/TicketSessionProvider.tsx, service-desk-app/apps/web/lib/nexus-service-desk-client.ts, service-desk-app/apps/web/lib/nexus-service-desk-client.test.ts, service-desk-app/apps/web/lib/nexus-sync-outbox.ts, service-desk-app/apps/web/lib/nexus-sync-outbox.test.ts, service-desk-app/apps/web/lib/workspace-navigation.ts, service-desk-app/apps/web/lib/workspace-navigation.test.ts, tasks/loop-log.md.
+- Result: PASS — Service Desk lint, typecheck, 530 tests, build, high-severity audit, four P1 browser tests, guided server PASS, independent server PASS, and a fresh browser check that refused the first attempt, switched tickets, and retried the queued action with its original V2 keys. Protected Stage 4 SHA and sole Alembic head are unchanged.
+- Next: Push the fix, await all GitHub CI and automated review, resolve addressed threads, and keep PR #59 open and unmerged.

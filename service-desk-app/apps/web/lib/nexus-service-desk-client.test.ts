@@ -14,6 +14,7 @@ import {
   EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
   NEXUS_SERVICE_DESK_CONTRACT_HEADER,
 } from './service-desk-contract';
+import { captureV2LaunchContextForTicket } from './workspace-navigation';
 
 // IDs are plain integers on the wire (SQLAlchemy primary keys serialized as
 // JSON numbers), not strings - these fixtures intentionally mirror that.
@@ -272,6 +273,35 @@ describe('Nexus service desk client', () => {
     await startOrResumeAttempt(7);
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/service-desk/assignments/7/attempts?v2_module_key=module.aplus.ip&v2_assessment_key=assess.aplus.ip.sd',
+      expect.anything(),
+    );
+  });
+
+  it('uses a queued action’s captured context when the learner has switched tickets', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const response = String(input).endsWith('/contract')
+        ? { contract_version: '2.0' }
+        : attempt;
+      return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const location = {
+      pathname: '/service-desk/tickets/INC2504',
+      search: '?v2ModuleKey=module.ip&v2AssessmentKey=assess.ip&v2LaunchTicket=INC2504',
+    };
+    vi.stubGlobal('window', { location });
+    const captured = captureV2LaunchContextForTicket('INC2504');
+    location.pathname = '/service-desk/tickets/INC2501';
+
+    await startOrResumeAttempt(7, captured);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/service-desk/assignments/7/attempts?v2_module_key=module.ip&v2_assessment_key=assess.ip',
+      expect.anything(),
+    );
+
+    await startOrResumeAttempt(8, null);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/service-desk/assignments/8/attempts',
       expect.anything(),
     );
   });
