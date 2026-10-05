@@ -59,24 +59,24 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
       setBusy(false);
     }
   }
-  return <section className="panel space-y-5" aria-labelledby="interaction-title">
+  return <section className="learning-section space-y-5" aria-labelledby="interaction-title">
     <div className="flex flex-wrap items-start justify-between gap-3"><div>
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">Interactive practice{interaction.required ? " · Required" : " · Optional"}</p>
-      <h2 className="mt-1 text-xl font-bold" id="interaction-title">{interaction.title}</h2>
+      <p className="type-label">Try it{interaction.required ? " · Required" : " · Optional"}</p>
+      <h1 className="type-page-title" id="interaction-title">{interaction.title}</h1>
     </div><V2Status status={progress.status} /></div>
     <p id="interaction-instructions">{interaction.instructions}</p>
     <form className="space-y-5" onSubmit={submit} aria-describedby="interaction-instructions">
-      <Renderer content={interaction.content} value={answer} onChange={setAnswer} />
-      <button className="btn-primary min-h-11 focus-visible:ring-2 focus-visible:ring-teal-600" type="submit" disabled={busy || stale}>{busy ? "Checking..." : progress.attempt_count ? "Check again" : "Check answer"}</button>
+      <fieldset disabled={busy || stale || Boolean(result)} className="min-w-0"><legend className="sr-only">Your answer</legend><Renderer content={interaction.content} value={answer} onChange={setAnswer} /></fieldset>
+      {!result && !stale ? <button className="btn-primary min-h-11" type="submit" disabled={busy}>{busy ? "Checking..." : "Check answer"}</button> : null}
     </form>
     {error ? <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p> : null}
-    {stale ? <button className="btn-secondary" type="button" onClick={load}>Reload interaction</button> : null}
-    {result ? <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" role="status" aria-live="polite">
-      <p className="font-semibold">{result.passed ? "Passed" : "Try again"} · {result.score}%</p>
+    {stale ? <button className="btn-primary" type="button" onClick={load}>Reload interaction</button> : null}
+    {result ? <div className={`learning-feedback ${result.passed ? "learning-feedback-correct" : "learning-feedback-retry"}`} role="status" aria-live="polite">
+      <p className="font-semibold">{result.passed ? "Correct" : "Not quite"}</p>
       <p className="mt-1">{result.feedback}</p>
       {result.passed && result.correct_answer != null ? <div className="mt-2 text-sm"><p className="font-medium">Correct answer:</p>{Array.isArray(result.correct_answer) ? <ol className="ml-5 list-decimal">{result.correct_answer.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol> : <p>{result.correct_answer}</p>}</div> : null}
-      {result.passed ? <div className="mt-4"><V2NextStep moduleKey={moduleKey} showDescription /></div> : <button className="btn-secondary mt-4" type="button" onClick={() => setResult(null)}>Retry</button>}
+      {result.passed ? <div className="mt-4 flex flex-wrap items-center gap-3"><V2NextStep moduleKey={moduleKey} /><button className="btn-quiet" type="button" onClick={() => setResult(null)}>Practice again</button></div> : <button className="btn-primary mt-4" type="button" onClick={() => setResult(null)}>Try again</button>}
     </div> : null}
-    <p className="text-sm text-slate-500">{progress.attempt_count} attempt{progress.attempt_count === 1 ? "" : "s"} saved. You can retry without penalty.</p>
+    {progress.attempt_count ? <p className="type-meta">{progress.attempt_count} attempt{progress.attempt_count === 1 ? "" : "s"} saved.</p> : null}
   </section>;
 }

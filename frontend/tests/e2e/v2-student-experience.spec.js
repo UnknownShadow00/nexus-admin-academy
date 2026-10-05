@@ -25,12 +25,12 @@ test("authenticated student can use the live V2 shell and durable activity surfa
   await expect(page.getByRole("heading", { name: "PC Components, Power & Safe Upgrades" })).toBeVisible();
   await page.getByRole("link", { name: /Motherboards, Form Factors and Compatibility/ }).click();
   await expect(page.getByRole("heading", { name: "Motherboards, Form Factors and Compatibility", exact: true })).toBeVisible();
-  await expect(page.getByText("Required").first()).toBeVisible();
+  await expect(page.getByText(/Required/).first()).toBeVisible();
   await page.goto("/learning-v2");
 
   await page.getByRole("link", { name: /Continue learning/ }).click({ timeout: 10000 });
   await expect(page.getByRole("heading", { name: "IPv4 Configuration Basics", exact: true })).toBeVisible();
-  await expect(page.getByText("Required").first()).toBeVisible();
+  await expect(page.getByText(/Required/).first()).toBeVisible();
   // Keep the external provider out of this disposable browser run. The click
   // still exercises Nexus resource tracking and the new-tab affordance.
   await page.context().route("https://www.professormesser.com/**", (route) => route.fulfill({
@@ -49,26 +49,26 @@ test("authenticated student can use the live V2 shell and durable activity surfa
   await page.getByRole("link", { name: "Start Quick Check" }).click();
   await expect(page).toHaveURL(/\/assessments\//);
   await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
-  const firstQuestion = await page.locator("main > section.panel h2").textContent();
+  const firstQuestion = await page.locator("#checkpoint-question-title").textContent();
   const firstChoice = page.locator("fieldset input").first();
   if (await firstChoice.isVisible().catch(() => false)) await firstChoice.check();
   else await page.getByLabel("Your answer").fill("saved draft");
   await page.reload();
   await expect(page.getByRole("heading", { name: firstQuestion, exact: true })).toBeVisible();
-  await expect(page.getByText("1 answered")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Question 1: answered, current" })).toBeVisible();
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   const countText = await page.getByText(/Question 1 of \d+/).textContent();
   const total = Number(countText.match(/of (\d+)/)?.[1] || 1);
   for (let index = 1; index < total; index += 1) {
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: "Next question" }).click();
   }
   await page.getByRole("button", { name: "Submit answers" }).click();
   await page.getByRole("button", { name: "Submit anyway" }).click();
   await expect(page.getByRole("heading", { name: "Not quite" })).toBeVisible();
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
-  await page.getByRole("link", { name: "Back to module" }).click();
+  await page.getByRole("link", { name: "Back to Stage" }).click();
   await expect(page.getByRole("heading", { name: moduleTitle }).first()).toBeVisible();
 
   const secondLesson = page.getByRole("link", { name: "DHCP and APIPA", exact: true });
@@ -79,7 +79,7 @@ test("authenticated student can use the live V2 shell and durable activity surfa
 
   await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration/assessments/assess.aplus.ipcfg.module_quiz");
   await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
-  const quizQuestion = await page.locator("main > section.panel h2").textContent();
+  const quizQuestion = await page.locator("#checkpoint-question-title").textContent();
   await page.reload();
   await expect(page.getByRole("heading", { name: quizQuestion, exact: true })).toBeVisible();
 
