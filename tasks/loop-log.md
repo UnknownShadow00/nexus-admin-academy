@@ -3100,3 +3100,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/pages/admin/MentorPracticalReview.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, frontend/src/components/ui/Badge.jsx, frontend/tests/e2e/mentor-practical-review.spec.js, frontend/src/styles.css, tasks/loop-log.md; /tmp/nexus-ui-pr7-review-20261005-024800/ (outside git).
 - Result: PASS — PR #56 merged safely; 207 frontend tests, 5 relevant Playwright tests, 3 backend contract tests, production build, npm audit zero vulnerabilities, CLI validate/sanity, 26 disposable visual captures, Stage 4 bank and Alembic head unchanged.
 - Next: Push and open PR 7, wait for GitHub CI/review, keep PR 7 unmerged, and complete read-only PR 8 and Service Desk plans.
+
+## [2026-10-05 03:17:43 UTC] Task Completed
+- Task: Fixed PR 7 browser CI regression by retaining the shared status badge import for populated admin lab and VM rows and aligning the admin navigation assertion with the new page title.
+- Files changed: frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS — 208 frontend tests and production build; focused populated admin-row regression test passes. Local browser stack reproduced the original failure; a later rerun hit Chromium ERR_INSUFFICIENT_RESOURCES on this crowded host, so hosted CI is the remaining browser gate.
+- Next: Push fix, wait for all PR 7 CI/review, keep the PR unmerged, and finish read-only PR 8/Service Desk planning.

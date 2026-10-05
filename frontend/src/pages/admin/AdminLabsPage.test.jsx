@@ -32,6 +32,15 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("mentor practical review workspace", () => {
+  it("keeps existing lab template and VM assignment statuses visible", async () => {
+    api.getAdminLabTemplates.mockResolvedValue({ data: [{ id: 1, title: "Windows support lab", is_published: true }] });
+    api.getAdminVmAssignments.mockResolvedValue({ data: [{ id: 2, student_name: "Student 7", lab_title: "Windows support lab", status: "in_progress" }] });
+    render(<AdminLabsPage />);
+    expect(await screen.findAllByText("Windows support lab")).toHaveLength(2);
+    expect(screen.getByText("Published")).toBeVisible();
+    expect(screen.getByText("In progress")).toBeVisible();
+  });
+
   it("shows queue, actual submission data, evidence, structured note and separate decision", async () => {
     render(<AdminLabsPage />);
     expect(await screen.findByRole("heading", { name: "Guided practical 7" })).toBeVisible();

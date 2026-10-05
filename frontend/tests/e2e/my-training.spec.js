@@ -320,7 +320,7 @@ test("admin can open Curriculum Structure under Learning Content", async ({ page
   const adminRoutes = [
     ["/admin/modules", "Module Manager"],
     ["/admin/students", "Student Activity Overview"],
-    ["/admin/labs", "Lab Templates"],
+    ["/admin/labs", "Practical reviews and labs"],
     ["/admin/capstones", "Capstone Templates"],
     ["/admin/ai-costs", "AI Cost Dashboard"],
   ];

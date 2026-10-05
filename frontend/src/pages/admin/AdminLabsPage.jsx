@@ -1,6 +1,7 @@
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { StatusBadge } from "../../components/ui/Badge";
 import PageHeader from "../../components/ui/PageHeader";
 import MentorPracticalReview from "./MentorPracticalReview";
 import {
