@@ -87,7 +87,7 @@ test("production CSP allows Sentry and Replay without broadening Nexus navigatio
   const workerUrls = await page.evaluate(() => window.__nexusWorkerStarts);
   expect(workerUrls.every((url) => url.startsWith("blob:"))).toBe(true);
 
-  await expect(page.getByRole("link", { name: "Tickets", exact: true })).toHaveAttribute("href", "/service-desk");
+  await expect(page.getByRole("link", { name: "Service Desk", exact: true })).toHaveAttribute("href", "/service-desk");
 
   expect(sentryEnvelopes.every(({ method, url }) => method === "POST" && url.startsWith(SENTRY_INGEST_ORIGIN))).toBe(true);
   expect(expectedPageErrors).toHaveLength(1);
@@ -107,7 +107,7 @@ test("disposable stack preserves authenticated Service Desk navigation", async (
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/\/$/);
 
-  await page.getByRole("link", { name: "Tickets", exact: true }).click();
+  await page.getByRole("link", { name: "Service Desk", exact: true }).click();
   await expect(page).toHaveURL(/\/service-desk$/);
-  await expect(page.getByRole("heading", { name: "My Service Desk" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: "Ticket queue", exact: true })).toBeVisible({ timeout: 20_000 });
 });

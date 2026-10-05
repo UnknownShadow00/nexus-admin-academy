@@ -3142,3 +3142,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: service-desk-app/apps/web/components/Header.tsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
 - Result: PASS focused fresh-stack desktop queue/tool/mobile return browser check, Service Desk lint, 527 unit tests, typecheck, build, and syntax check. Full local my-training rerun had unrelated Labs/admin error-boundary failures and a Week 0 timeout in its local disposable stack; CI rerun remains required.
 - Next: Push fix, rerun all required GitHub checks, inspect review threads, leave PR #59 open and unmerged.
+
+## [2026-10-05 21:48 UTC] Task Completed
+- Task: Updated remaining Service Desk browser assertions for the PR 9A queue heading and current global navigation label.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js, frontend/tests/e2e/sentry-csp.spec.js, tasks/loop-log.md.
+- Result: PASS — two affected integration cases and the authenticated Service Desk navigation smoke case on a fresh disposable stack, JavaScript syntax checks, and git diff --check; no product or backend changes.
+- Next: Push the test fix, wait for all GitHub CI and review, and keep PR #59 open and unmerged.
