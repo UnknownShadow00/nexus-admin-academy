@@ -5,10 +5,10 @@ import { getStatusPresentation, statusFoundation, statusToneClasses } from "./st
 const iconMap = { Award, BadgeCheck, CheckCircle2, Circle, Clock3, Eye, FilePenLine, Hourglass, Lock, MessageSquareText, RotateCcw, Search, Send, Zap };
 const pill = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium";
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, label }) {
   const item = statusFoundation[status] ? getStatusPresentation(status) : statusConfig[status] || getStatusPresentation("not_started");
   const Icon = iconMap[item.iconName] || Circle;
-  return <span className={`${pill} ${item.tone ? statusToneClasses[item.tone] : item.badgeClass}`}><Icon size={iconSizes.inline} aria-hidden="true" />{item.label}</span>;
+  return <span className={`${pill} ${item.tone ? statusToneClasses[item.tone] : item.badgeClass}`}><Icon size={iconSizes.inline} aria-hidden="true" />{label || item.label}</span>;
 }
 
 export function DifficultyBadge({ level, showBar = false }) {
