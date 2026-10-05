@@ -63,7 +63,7 @@ describe("V2Interaction", () => {
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
     expect(await screen.findByText("RAM → Memory")).toBeVisible();
     expect(screen.getByText("RJ45 → Ethernet")).toBeVisible();
-    expect(await screen.findByText("Next: Continue with Quick Check")).toBeVisible();
+    expect(await screen.findByRole("link", { name: /Continue with Quick Check/ })).toBeVisible();
     expect(screen.getByRole("link", { name: /Continue with Quick Check/ })).toHaveAttribute("href", "/learning-v2/modules/module.demo/assessments/quick");
     expect(screen.queryByText(/Return to the module for your next step/)).not.toBeInTheDocument();
   });
@@ -87,14 +87,15 @@ describe("V2Interaction", () => {
     }
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
     const result = await screen.findByRole("status");
-    expect(result).toHaveTextContent("Try again · 50%");
+    expect(result).toHaveTextContent("Not quite");
     expect(result).toHaveTextContent("Recheck the prompt.");
     expect(within(result).queryByText("Correct answer:")).not.toBeInTheDocument();
-    expect(within(result).getByRole("button", { name: "Retry" })).toBeVisible();
-    expect(screen.getByText("1 attempt saved. You can retry without penalty.")).toBeVisible();
-    await userEvent.click(within(result).getByRole("button", { name: "Retry" }));
+    expect(screen.queryByRole("button", { name: "Check answer" })).not.toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "Try again" })).toBeVisible();
+    expect(screen.getByText("1 attempt saved.")).toBeVisible();
+    await userEvent.click(within(result).getByRole("button", { name: "Try again" }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check again" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Check answer" })).toBeEnabled();
   });
 
   it("gives the image meaningful alt text and accessible choices", async () => {
@@ -146,7 +147,7 @@ describe("V2Interaction", () => {
     await userEvent.type(screen.getByRole("textbox"), "ipconfig");
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Reload it");
-    expect(screen.getByRole("button", { name: "Check answer" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Check answer" })).not.toBeInTheDocument();
     const updated = answerData("typed_answer");
     updated.interaction.version_id = 78;
     updated.interaction.version = 2;
@@ -161,10 +162,59 @@ describe("V2Interaction", () => {
     await mount("safe_action");
     await userEvent.click(screen.getByRole("radio", { name: "Safe choice" }));
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Passed");
+    expect(await screen.findByRole("status")).toHaveTextContent("Correct");
     api.submitV2Interaction.mockRejectedValueOnce({ response: { status: 422 }, userMessage: "Choose one unique answer." });
-    await userEvent.click(screen.getByRole("button", { name: "Check again" }));
+    await userEvent.click(screen.getByRole("button", { name: "Practice again" }));
+    await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Choose one unique answer.");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it.each(Object.keys(contents))("keeps %s answer, feedback, retry, and server completion separate", async (type) => {
+    await mount(type);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByText("Choose or enter your answer.")).toBeVisible();
+    api.submitV2Interaction.mockResolvedValueOnce({ data: {
+      ...answerData(type),
+      progress: { status: "in_progress", attempt_count: 1, passed: false },
+      submission_result: { passed: false, score: 0, feedback: "Check the lesson and try another answer.", correct_answer: "hidden" },
+    } });
+    if (type === "matching") {
+      await userEvent.selectOptions(screen.getByLabelText("RAM"), "ethernet");
+      await userEvent.selectOptions(screen.getByLabelText("RJ45"), "memory");
+    } else if (type === "typed_answer") {
+      await userEvent.type(screen.getByRole("textbox"), "wrong");
+    } else if (type !== "ordering") {
+      await userEvent.click(screen.getByRole("radio", { name: "Unsafe choice" }));
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    const wrong = await screen.findByRole("status");
+    expect(wrong).toHaveTextContent("Not quite");
+    expect(wrong).toHaveTextContent("Check the lesson and try another answer.");
+    expect(wrong).not.toHaveTextContent("hidden");
+    expect(screen.queryByRole("button", { name: "Check answer" })).not.toBeInTheDocument();
+    await userEvent.click(within(wrong).getByRole("button", { name: "Try again" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    if (type === "matching") {
+      await userEvent.selectOptions(screen.getByLabelText("RAM"), "memory");
+      await userEvent.selectOptions(screen.getByLabelText("RJ45"), "ethernet");
+    } else if (type === "ordering") {
+      await userEvent.click(screen.getByRole("button", { name: "Move Ask the user up" }));
+    } else if (type === "typed_answer") {
+      await userEvent.clear(screen.getByRole("textbox"));
+      await userEvent.type(screen.getByRole("textbox"), "ipconfig");
+    } else {
+      await userEvent.click(screen.getByRole("radio", { name: "Safe choice" }));
+    }
+    api.submitV2Interaction.mockResolvedValueOnce({ data: {
+      ...answerData(type),
+      progress: { status: "passed", attempt_count: 2, passed: true },
+      submission_result: { passed: true, score: 100, feedback: "That matches the lesson.", correct_answer: "right" },
+    } });
+    await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    const correct = await screen.findByRole("status");
+    expect(correct).toHaveTextContent("Correct");
+    expect(correct).toHaveTextContent("That matches the lesson.");
+    expect(screen.getByText("2 attempts saved.")).toBeVisible();
   });
 });

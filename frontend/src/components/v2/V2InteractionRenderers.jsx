@@ -3,7 +3,7 @@
 function ChoiceField({ choices, value, onChange, name = "choice" }) {
   return <fieldset className="space-y-2">
     <legend className="sr-only">Choose one answer</legend>
-    {choices.map((choice) => <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 focus-within:ring-2 focus-within:ring-teal-600 dark:border-slate-700" key={choice.id}>
+    {choices.map((choice) => <label className={`learning-choice ${value === choice.id ? "learning-choice-selected" : ""}`} key={choice.id}>
       <input className="mt-1 accent-teal-700" type="radio" name={name} value={choice.id} checked={value === choice.id} onChange={() => onChange(choice.id)} required />
       <span>{choice.label}</span>
     </label>)}
@@ -36,18 +36,18 @@ export function OrderingInteraction({ content, value, onChange }) {
     [next[index], next[index + direction]] = [next[index + direction], next[index]];
     onChange(next);
   }
-  return <ol className="space-y-2" aria-label="Steps in your chosen order">{items.map((id, index) => <li className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700" key={id}>
+  return <ol className="space-y-2" aria-label="Steps in your chosen order">{items.map((id, index) => <li className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--nexus-border)] p-3" key={id}>
     <span className="w-6 shrink-0 font-semibold">{index + 1}.</span>
-    <span className="flex-1">{labels[id]}</span>
-    <button className="btn-secondary min-h-10 px-3 focus-visible:ring-2 focus-visible:ring-teal-600" type="button" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${labels[id]} up`}>Move up</button>
-    <button className="btn-secondary min-h-10 px-3 focus-visible:ring-2 focus-visible:ring-teal-600" type="button" disabled={index === items.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${labels[id]} down`}>Move down</button>
+    <span className="min-w-0 flex-1 basis-[12rem]">{labels[id]}</span>
+    <div className="flex w-full gap-2 sm:w-auto"><button className="btn-secondary min-h-11 flex-1 px-3" type="button" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${labels[id]} up`}>Move up</button>
+    <button className="btn-secondary min-h-11 flex-1 px-3" type="button" disabled={index === items.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${labels[id]} down`}>Move down</button></div>
   </li>)}</ol>;
 }
 
 export function CommandOutputInteraction({ content, value, onChange }) {
   return <div className="space-y-4">
-    <div><p className="text-sm font-semibold">Command</p><code className="block rounded-lg bg-slate-100 p-3 dark:bg-slate-900">{content.command}</code></div>
-    <div><p className="text-sm font-semibold">Output</p><pre className="overflow-x-auto rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-900">{content.output}</pre></div>
+    <div><p className="text-sm font-semibold">Command</p><code className="learning-command">{content.command}</code></div>
+    <div><p className="text-sm font-semibold">Output</p><pre className="learning-command">{content.output}</pre></div>
     <p className="font-medium">{content.question}</p>
     <ChoiceField choices={content.choices} value={value} onChange={onChange} />
   </div>;
