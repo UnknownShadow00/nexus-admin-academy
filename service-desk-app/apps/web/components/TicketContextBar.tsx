@@ -6,6 +6,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
 
 import type { NexusAssignment } from '../lib/nexus-service-desk-client';
+import { workspaceHref } from '../lib/workspace-navigation';
 import { TicketStatusBadge } from './TicketStatusBadge';
 
 type ExperienceMode = NexusAssignment['experience_mode'];
@@ -31,10 +32,12 @@ export function TicketContextBar({
   assignment,
   ticket,
   completed = false,
+  launchQuery = '',
 }: {
   assignment?: NexusAssignment;
   ticket: Ticket;
   completed?: boolean;
+  launchQuery?: string;
 }) {
   const remaining = assignment
     ? attemptsRemaining(
@@ -49,7 +52,7 @@ export function TicketContextBar({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             className="sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-semibold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus lg:hidden"
-            href="/"
+            href={workspaceHref('/', launchQuery, ticket.id)}
           >
             <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
             Back to tickets

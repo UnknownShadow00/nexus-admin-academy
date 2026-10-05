@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { Button, Card } from '@service-desk/ui';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { TicketQueueFilters } from './TicketQueueFilters';
 import { TicketQueueSection } from './TicketQueueSection';
@@ -28,6 +29,7 @@ const EMPTY_FILTERS: TicketFilters = {
 };
 
 export function TicketQueue() {
+  const launchQuery = useSearchParams().toString();
   const { assignmentByTicket, progression, tickets } = useTicketSession();
   const [filters, setFilters] = useState<TicketFilters>(EMPTY_FILTERS);
   const filteredTickets = useMemo(
@@ -95,6 +97,7 @@ export function TicketQueue() {
           label="Assigned"
           meta={`${assignedTickets.length} new or active`}
           tickets={assignedTickets}
+          launchQuery={launchQuery}
           assignmentByTicket={assignmentByTicket}
         />
       ) : null}
@@ -122,6 +125,7 @@ export function TicketQueue() {
               label="Practice cases"
               meta={`${practiceTickets.length} unlocked`}
               tickets={practiceTickets}
+              launchQuery={launchQuery}
               assignmentByTicket={assignmentByTicket}
             />
           ) : (
@@ -155,6 +159,7 @@ export function TicketQueue() {
               label="Unlocked cases outside this shift"
               meta={`${earlierTickets.length} unfinished`}
               tickets={earlierTickets}
+              launchQuery={launchQuery}
               assignmentByTicket={assignmentByTicket}
             />
           </div>

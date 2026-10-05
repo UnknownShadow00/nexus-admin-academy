@@ -80,6 +80,25 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
   await expect(queue).toBeVisible();
   await expect(queue.locator('[aria-current="page"]')).toContainText("INC2504");
   await expect(queue.locator('[aria-current="page"]')).toHaveCount(1);
+  const selectedHref = await queue.locator('[aria-current="page"]').getAttribute('href');
+  const selectedUrl = new URL(selectedHref, page.url());
+  expect(selectedUrl.searchParams.get('v2ModuleKey')).toBe(moduleKey);
+  expect(selectedUrl.searchParams.get('v2AssessmentKey')).toBe('assess.aplus-core1-printers-mfds.service_desk');
+  expect(selectedUrl.searchParams.get('v2LaunchTicket')).toBe('INC2504');
+  await queue.locator('[aria-current="page"]').click();
+  await expect(page).toHaveURL(/[?&]v2LaunchTicket=INC2504(?:&|$)/);
+  await queue.getByRole('link', { name: /INC2403:/ }).click();
+  await expect(queue.locator('[aria-current="page"]')).toContainText('INC2403');
+  await expect(page).toHaveURL(/[?&]v2LaunchTicket=INC2504(?:&|$)/);
+  await queue.getByRole('link', { name: /INC2504:/ }).click();
+  await expect(queue.locator('[aria-current="page"]')).toContainText('INC2504');
+  await expect(page).toHaveURL(/[?&]v2ModuleKey=module.aplus.core1.printers_mfds(?:&|$)/);
+  const attemptStarts = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/service-desk\/assignments\/[^/]+\/attempts/.test(request.url())) {
+      attemptStarts.push(request.url());
+    }
+  });
   await expect(page.getByRole("heading", { name: "Ticket workflow" })).toBeAttached();
   await expect(page.locator('[data-group-2-slot="workflow-rail"] ol').first().locator('li')).toHaveCount(6);
   await expect(page.getByText("Guided Practice", { exact: true })).toBeVisible();
@@ -105,6 +124,8 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
   ).toHaveCount(1);
   await capture(page, "desktop-tool");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect.poll(() => attemptStarts.length).toBeGreaterThan(0);
+  expect(attemptStarts.some((url) => url.includes('v2_module_key=module.aplus.core1.printers_mfds'))).toBe(true);
   await expect
     .poll(
       async () =>

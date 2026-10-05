@@ -3,7 +3,7 @@
 import { IconDeviceDesktop, IconHome } from '@tabler/icons-react';
 import { Button } from '@service-desk/ui';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
 import { NavCluster } from './NavCluster';
@@ -14,6 +14,7 @@ import { ProfileMenuTrigger } from './ProfileMenuTrigger';
 import { useSyncStatus } from './TicketSessionProvider';
 import { ToolsPanel } from './ToolsPanel';
 import { useNexusReturnTarget } from './useNexusReturnTarget';
+import { workspaceHref } from '../lib/workspace-navigation';
 
 interface HeaderProps {
   currentPath: string;
@@ -24,8 +25,15 @@ export function Header({ currentPath }: HeaderProps) {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [pastTicketsOpen, setPastTicketsOpen] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const onToolPage = currentPath.startsWith('/tools/');
   const onTicketPage = currentPath.startsWith('/tickets/');
+  const currentTicketId = onTicketPage ? currentPath.split('/')[2] : undefined;
+  const queueHref = workspaceHref(
+    '/',
+    searchParams.toString(),
+    currentTicketId,
+  );
   const nexusReturnTarget = useNexusReturnTarget();
 
   return (
@@ -37,7 +45,7 @@ export function Header({ currentPath }: HeaderProps) {
               aria-current={currentPath === '/' ? 'page' : undefined}
               aria-label="Service Desk ticket queue"
               className="sd-focus-ring flex min-w-0 items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              href="/"
+              href={queueHref}
             >
               <span className="flex h-8 w-9 shrink-0 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent md:h-10 md:w-11">
                 <IconDeviceDesktop aria-hidden="true" className="h-5 w-5" />
@@ -60,7 +68,7 @@ export function Header({ currentPath }: HeaderProps) {
             {onToolPage ? (
               <Button
                 className="hidden px-2 text-xs xl:inline-flex"
-                onClick={() => router.push('/')}
+                onClick={() => router.push(queueHref)}
                 variant="ghost"
               >
                 <IconHome aria-hidden="true" className="h-4 w-4" />

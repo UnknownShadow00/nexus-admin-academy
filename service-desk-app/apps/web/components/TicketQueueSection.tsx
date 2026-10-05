@@ -10,6 +10,7 @@ interface TicketQueueSectionProps {
   label: string;
   meta: string;
   tickets: readonly Ticket[];
+  launchQuery?: string;
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
 }
 
@@ -18,6 +19,7 @@ export function TicketQueueSection({
   label,
   meta,
   tickets,
+  launchQuery,
   assignmentByTicket,
 }: TicketQueueSectionProps) {
   return (
@@ -43,6 +45,7 @@ export function TicketQueueSection({
           <TicketRow
             assignment={assignmentByTicket[ticket.id]}
             key={ticket.id}
+            launchQuery={launchQuery}
             ticket={ticket}
           />
         ))}

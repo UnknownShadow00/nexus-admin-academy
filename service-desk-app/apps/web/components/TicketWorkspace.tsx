@@ -195,6 +195,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const ticketQueue = (
     <WorkspaceTicketQueue
       assignmentByTicket={assignmentByTicket}
+      launchQuery={searchParams.toString()}
       selectedTicketId={ticketId}
       tickets={tickets}
     />
@@ -205,7 +206,12 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
       <div className="grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]">
         {ticketQueue}
         <div className="min-w-0 space-y-4 sm:space-y-5">
-          <TicketContextBar assignment={assignment} completed ticket={ticket} />
+          <TicketContextBar
+            assignment={assignment}
+            completed
+            launchQuery={searchParams.toString()}
+            ticket={ticket}
+          />
           <TicketDebrief
             assignment={assignment}
             grade={authoritativeGrade}
@@ -224,7 +230,11 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     >
       {ticketQueue}
       <div className="min-w-0 space-y-4">
-        <TicketContextBar assignment={assignment} ticket={ticket} />
+        <TicketContextBar
+          assignment={assignment}
+          launchQuery={searchParams.toString()}
+          ticket={ticket}
+        />
         {awaitingGradeByTicket[ticketId] ? (
           <p
             className="rounded-md border border-border p-4 text-lg font-bold"

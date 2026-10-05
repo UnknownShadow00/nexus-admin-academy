@@ -6,6 +6,7 @@ import React from 'react';
 
 import { TicketStatusBadge } from './TicketStatusBadge';
 import type { NexusAssignment } from '../lib/nexus-service-desk-client';
+import { workspaceHref } from '../lib/workspace-navigation';
 
 const MODE_LABELS: Record<NexusAssignment['experience_mode'], string> = {
   assessment: 'Independent assessment',
@@ -15,16 +16,18 @@ const MODE_LABELS: Record<NexusAssignment['experience_mode'], string> = {
 
 export function TicketRow({
   assignment,
+  launchQuery = '',
   ticket,
 }: {
   assignment?: NexusAssignment;
+  launchQuery?: string;
   ticket: Ticket;
 }) {
   return (
     <Link
       aria-label={`Open ticket ${ticket.id}: ${ticket.title}`}
       className="sd-focus-ring group grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-3 py-3 transition-colors hover:bg-surface-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus sm:grid-cols-[8rem_minmax(0,1fr)_10rem_8rem_1.25rem] sm:items-center sm:px-4"
-      href={`/tickets/${ticket.id}`}
+      href={workspaceHref(`/tickets/${ticket.id}`, launchQuery)}
     >
       <span className="col-start-1 row-start-2 flex items-center gap-2 sm:col-start-1 sm:row-start-1">
         <PriorityBadge priority={ticket.priority} />

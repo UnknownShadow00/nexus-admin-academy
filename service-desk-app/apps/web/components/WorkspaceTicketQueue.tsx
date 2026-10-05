@@ -4,10 +4,12 @@ import Link from 'next/link';
 import React from 'react';
 
 import type { NexusAssignment } from '../lib/nexus-service-desk-client';
+import { workspaceHref } from '../lib/workspace-navigation';
 import { TicketStatusBadge } from './TicketStatusBadge';
 
 type WorkspaceTicketQueueProps = {
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
+  launchQuery?: string;
   selectedTicketId: string;
   tickets: readonly Ticket[];
 };
@@ -19,9 +21,11 @@ const QUEUE_GROUPS = [
 ] as const;
 
 function QueueTicketLink({
+  href,
   selected,
   ticket,
 }: {
+  href: string;
   selected: boolean;
   ticket: Ticket;
 }) {
@@ -34,7 +38,7 @@ function QueueTicketLink({
           ? 'border-accent bg-accent/10'
           : 'border-transparent hover:bg-surface-muted/50'
       }`}
-      href={`/tickets/${ticket.id}`}
+      href={href}
     >
       <span className="flex min-w-0 items-center justify-between gap-2">
         <span className="font-mono text-xs font-bold text-text-muted">
@@ -55,6 +59,7 @@ function QueueTicketLink({
 
 export function WorkspaceTicketQueue({
   assignmentByTicket,
+  launchQuery = '',
   selectedTicketId,
   tickets,
 }: WorkspaceTicketQueueProps) {
@@ -70,7 +75,7 @@ export function WorkspaceTicketQueue({
         <h2 className="text-sm font-bold text-text">Tickets</h2>
         <Link
           className="sd-focus-ring rounded-sm text-xs font-semibold text-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          href="/"
+          href={workspaceHref('/', launchQuery, selectedTicketId)}
         >
           View queue
         </Link>
@@ -80,7 +85,15 @@ export function WorkspaceTicketQueue({
           <h3 className="bg-surface px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">
             Current ticket
           </h3>
-          <QueueTicketLink selected ticket={selectedTicket} />
+          <QueueTicketLink
+            href={workspaceHref(
+              `/tickets/${selectedTicket.id}`,
+              launchQuery,
+              selectedTicketId,
+            )}
+            selected
+            ticket={selectedTicket}
+          />
         </section>
       ) : null}
       <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto">
@@ -99,7 +112,15 @@ export function WorkspaceTicketQueue({
               <ul className="divide-y divide-border">
                 {groupTickets.map((ticket) => (
                   <li key={ticket.id}>
-                    <QueueTicketLink selected={false} ticket={ticket} />
+                    <QueueTicketLink
+                      href={workspaceHref(
+                        `/tickets/${ticket.id}`,
+                        launchQuery,
+                        selectedTicketId,
+                      )}
+                      selected={false}
+                      ticket={ticket}
+                    />
                   </li>
                 ))}
               </ul>

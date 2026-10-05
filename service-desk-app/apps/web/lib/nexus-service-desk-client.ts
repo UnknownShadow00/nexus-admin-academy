@@ -3,6 +3,7 @@ import {
   NEXUS_SERVICE_DESK_CONTRACT_HEADER,
   contractIsCompatible,
 } from './service-desk-contract';
+import { launchContextAppliesToCurrentTicket } from './workspace-navigation';
 
 export interface NexusAssignmentAttemptSummary {
   attempt_number: number;
@@ -373,7 +374,7 @@ export async function getServiceDeskProgression(): Promise<NexusServiceDeskProgr
 export async function startOrResumeAttempt(
   assignmentId: string | number,
 ): Promise<NexusAttempt | null> {
-  const suffix = v2LaunchContextQuery();
+  const suffix = v2LaunchContextQuery(true);
   const result = await request(
     `/api/service-desk/assignments/${encodeURIComponent(assignmentId)}/attempts${suffix}`,
     { method: 'POST' },
@@ -382,13 +383,21 @@ export async function startOrResumeAttempt(
   return isAttempt(result) ? result : null;
 }
 
-function v2LaunchContextQuery(): string {
+function v2LaunchContextQuery(forAttempt = false): string {
   const query = new URLSearchParams();
   if (typeof window !== 'undefined') {
     const launch = new URLSearchParams(window.location.search);
     const moduleKey = launch.get('v2ModuleKey');
     const assessmentKey = launch.get('v2AssessmentKey');
-    if (moduleKey && assessmentKey) {
+    if (
+      moduleKey &&
+      assessmentKey &&
+      (!forAttempt ||
+        launchContextAppliesToCurrentTicket(
+          window.location.pathname,
+          window.location.search,
+        ))
+    ) {
       query.set('v2_module_key', moduleKey);
       query.set('v2_assessment_key', assessmentKey);
     }

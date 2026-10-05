@@ -251,6 +251,31 @@ describe('Nexus service desk client', () => {
     );
   });
 
+  it('uses V2 launch context only for its original ticket after switching cases', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const response = String(input).endsWith('/contract')
+        ? { contract_version: '2.0' }
+        : attempt;
+      return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const location = {
+      pathname: '/service-desk/tickets/INC2501',
+      search: '?v2ModuleKey=module.aplus.ip&v2AssessmentKey=assess.aplus.ip.sd&v2LaunchTicket=INC2504',
+    };
+    vi.stubGlobal('window', { location });
+
+    await startOrResumeAttempt(7);
+    expect(fetchMock).toHaveBeenCalledWith('/api/service-desk/assignments/7/attempts', expect.anything());
+
+    location.pathname = '/service-desk/tickets/INC2504';
+    await startOrResumeAttempt(7);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/service-desk/assignments/7/attempts?v2_module_key=module.aplus.ip&v2_assessment_key=assess.aplus.ip.sd',
+      expect.anything(),
+    );
+  });
+
   it('returns safe failure values when the network rejects', async () => {
     vi.stubGlobal(
       'fetch',

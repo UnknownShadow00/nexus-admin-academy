@@ -38,4 +38,18 @@ describe('WorkspaceTicketQueue', () => {
     expect(markup).toContain('No tickets available.');
     expect(markup).not.toContain('aria-current="page"');
   });
+
+  it('retains V2 credit context when the current ticket link is reopened', () => {
+    const markup = renderToStaticMarkup(
+      <WorkspaceTicketQueue
+        assignmentByTicket={{}}
+        launchQuery="v2ModuleKey=module.ip&v2AssessmentKey=assess.ip"
+        selectedTicketId={tickets[0]!.id}
+        tickets={tickets}
+      />,
+    );
+    expect(markup).toContain('v2LaunchTicket=');
+    expect(markup).toContain('v2ModuleKey=module.ip');
+    expect(markup).toContain('v2AssessmentKey=assess.ip');
+  });
 });
