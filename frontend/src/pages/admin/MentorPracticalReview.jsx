@@ -73,6 +73,7 @@ export default function MentorPracticalReview() {
 
   const load = async ({ initial = false } = {}) => {
     if (initial) setLoading(true);
+    setConfirmDecision(null);
     setLoadError("");
     try {
       const { data } = await getAdminV2PracticalReviews({ suppressToast: true });
@@ -142,7 +143,7 @@ export default function MentorPracticalReview() {
             <div className="mentor-review-section-head"><h3>Queue</h3><span>{reviews.length} waiting</span></div>
             <ol>{reviews.map((item) => (
               <li key={item.lab_run_id}>
-                <button type="button" className="mentor-review-queue-row" aria-current={selectedId === item.lab_run_id ? "true" : undefined} onClick={() => {
+                <button type="button" className="mentor-review-queue-row" disabled={submitting} aria-current={selectedId === item.lab_run_id ? "true" : undefined} onClick={() => {
                   setSelectedId(item.lab_run_id);
                   setDecisionError("");
                   setResult(null);

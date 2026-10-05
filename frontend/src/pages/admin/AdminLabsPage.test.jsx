@@ -105,6 +105,41 @@ describe("mentor practical review workspace", () => {
     expect(screen.getByRole("checkbox", { name: /performed evidence/ })).not.toBeChecked();
   });
 
+  it("keeps the selected learner fixed while a decision is in flight", async () => {
+    let rejectDecision;
+    api.getAdminV2PracticalReviews.mockResolvedValue({ data: [review(7), review(8)] });
+    api.reviewAdminV2Practical.mockImplementation(() => new Promise((_, reject) => { rejectDecision = reject; }));
+    render(<AdminLabsPage />);
+    await screen.findByRole("heading", { name: "Guided practical 7" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Mentor feedback" }), { target: { value: "Feedback for seven" } });
+    fireEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm decision" }));
+    await waitFor(() => expect(api.reviewAdminV2Practical).toHaveBeenCalledWith(7, expect.anything()));
+    expect(screen.getByRole("button", { name: /Student 8/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Student 8/ }));
+    expect(screen.getByRole("heading", { name: "Guided practical 7" })).toBeVisible();
+    rejectDecision({ userMessage: "Could not save" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not save");
+    expect(screen.getByRole("textbox", { name: "Mentor feedback" })).toHaveValue("Feedback for seven");
+  });
+
+  it("clears confirmation when refresh replaces the selected submission", async () => {
+    api.getAdminV2PracticalReviews.mockResolvedValueOnce({ data: [review(7), review(8)] }).mockResolvedValueOnce({ data: [review(8)] });
+    render(<AdminLabsPage />);
+    await screen.findByRole("heading", { name: "Guided practical 7" });
+    fireEvent.click(screen.getByRole("button", { name: /Student 8/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Mentor feedback" }), { target: { value: "Feedback for eight" } });
+    fireEvent.click(screen.getByRole("button", { name: /Student 7/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Mentor feedback" }), { target: { value: "Feedback for seven" } });
+    fireEvent.click(screen.getByRole("button", { name: "Request changes" }));
+    expect(screen.getByRole("button", { name: "Confirm decision" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh queue" }));
+    expect(await screen.findByRole("heading", { name: "Guided practical 8" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Confirm decision" })).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Mentor feedback" })).toHaveValue("Feedback for eight");
+    expect(api.reviewAdminV2Practical).not.toHaveBeenCalled();
+  });
+
   it("requests changes with feedback using the existing reject API value", async () => {
     api.reviewAdminV2Practical.mockResolvedValue({ data: { status: "failed" } });
     api.getAdminV2PracticalReviews.mockResolvedValueOnce({ data: [review()] }).mockResolvedValueOnce({ data: [] });

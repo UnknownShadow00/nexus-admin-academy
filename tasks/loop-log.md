@@ -3106,3 +3106,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
 - Result: PASS — 208 frontend tests and production build; focused populated admin-row regression test passes. Local browser stack reproduced the original failure; a later rerun hit Chromium ERR_INSUFFICIENT_RESOURCES on this crowded host, so hosted CI is the remaining browser gate.
 - Next: Push fix, wait for all PR 7 CI/review, keep the PR unmerged, and finish read-only PR 8/Service Desk planning.
+
+## [2026-10-05 03:21:44 UTC] Task Completed
+- Task: Addressed automated PR 7 review by locking queue selection during mentor decision submission and canceling stale confirmation when the review queue refreshes.
+- Files changed: frontend/src/pages/admin/MentorPracticalReview.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, tasks/loop-log.md.
+- Result: PASS — focused race tests, full frontend suite 210/210, production build, and git diff --check; no backend or business-state change.
+- Next: Push and wait for GitHub CI and review, leave PR 7 open, and deliver the read-only follow-on plans outside git.
