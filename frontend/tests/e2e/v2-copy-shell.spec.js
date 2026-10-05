@@ -32,8 +32,8 @@ test("copy-backed pilot shell survives logout while non-pilot stays out", async 
   await login(page, pilot, pilotPassword);
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await expect(page.getByText(pilotModule).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "My Course" })).toBeVisible();
-  await page.getByRole("link", { name: "My Course" }).click();
+  await expect(page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Course" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Course" }).click();
   await expect(page.getByRole("heading", { name: "CompTIA A+" })).toBeVisible();
   await expect(page.getByRole("heading", { name: pilotModule }).first()).toBeVisible();
   await page.getByRole("link", { name: new RegExp(pilotModule) }).first().click();
@@ -44,12 +44,12 @@ test("copy-backed pilot shell survives logout while non-pilot stays out", async 
   await expect(page).toHaveURL(/\/login$/);
   await login(page, nonpilot, nonpilotPassword);
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "My Course" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Course" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await login(page, pilot, pilotPassword);
-  await page.getByRole("link", { name: "My Course" }).click();
+  await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Course" }).click();
   await expect(page).toHaveURL(/\/learning-v2$/);
   await expect(page.getByRole("heading", { name: pilotModule }).first()).toBeVisible();
 });

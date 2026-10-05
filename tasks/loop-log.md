@@ -3052,3 +3052,39 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/phase0a-live-path.spec.js, tasks/loop-log.md.
 - Result: PASS for scoped test maintenance — no product behavior changed, the quiz result assertion remains, and git diff --check passes.
 - Next: Push the test update, wait for the replacement CI run, and inspect review threads.
+
+## [2026-10-04 23:07:21 UTC] Task Completed
+- Task: Safely merged PR #54 and implemented the PR 5 My Course vertical path and Stage work plan with separate mentor follow-up and mastery presentation.
+- Files changed: frontend/src/components/v2/V2Breadcrumbs.jsx, frontend/src/components/v2/V2StageSequence.jsx, frontend/src/pages/v2/V2LearningPage.jsx, frontend/src/pages/v2/V2LearningPage.test.jsx, frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, frontend/src/styles.css, frontend/tests/e2e/v2-copy-shell.spec.js, frontend/tests/e2e/v2-student-experience.spec.js, tasks/loop-log.md.
+- Result: PASS for implementation and local validation — 190 frontend tests, build, npm audit (zero vulnerabilities), CLI validate/sanity, fresh-stack V2 learner and pilot shell Playwright tests, fixture-backed desktop/mobile visual review, Stage 4 SHA and single Alembic head. Broader local legacy Playwright failures were isolated to Chromium resource exhaustion and unrelated stale module/Service Desk fixtures.
+- Next: Push PR 5, wait for GitHub CI and review, then complete read-only PR 6/7 and Service Desk audits. Do not merge PR 5.
+
+## [2026-10-04 23:17:32 UTC] Task Completed
+- Task: Completed read-only PR 6 Practical and PR 7 Mentor review plans, a six-stage Service Desk source audit, a cross-workflow consistency report, and a disposable 20-screenshot Service Desk visual inventory with six contact sheets.
+- Files changed: tasks/loop-log.md (repository); /tmp/nexus-ui-pr6-practical-plan.md, /tmp/nexus-ui-pr7-mentor-review-plan.md, /tmp/nexus-service-desk-ui-audit-2026-10.md, /tmp/nexus-ui-cross-workflow-consistency.md, /tmp/nexus-service-desk-ui-audit-20261004-232800/ (outside git).
+- Result: PASS for read-only research and available-state visual capture; later Service Desk stage transitions and result screens were source-audited but could not be captured from the gated disposable fixture.
+- Next: Wait for all GitHub CI jobs and review, keep PR #55 open, and seed an authorized Service Desk attempt for complete future visual UAT.
+
+## [2026-10-04 23:18:48 UTC] Task Completed
+- Task: Corrected Stage continuation copy so a practical with changes requested is not described as still with the mentor, and added regression coverage.
+- Files changed: frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md.
+- Result: PASS — focused 8 tests, full 190 frontend tests, production build, npm audit with zero vulnerabilities, and git diff --check.
+- Next: Push the focused fix, wait for replacement GitHub CI and inspect review threads; keep PR #55 open.
+
+## [2026-10-04 23:31:37 UTC] Task Completed
+- Task: Restored the learner-facing Service Desk entry label on the Stage work plan when server content uses an internal scenario reference, preserving the actual route and adding a regression test.
+- Files changed: frontend/src/components/v2/V2StageSequence.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md.
+- Result: PASS — focused 9 tests, full 191 frontend tests, production build, and git diff --check; prior audit recorded zero high-severity npm vulnerabilities.
+- Next: Push the fix, wait for the new GitHub CI run, and inspect browser and review results; keep PR #55 open.
+
+## [2026-10-04 23:36:19 UTC] Task Completed
+- Task: Kept the Stage work-plan's current Service Desk action marked as the next step after replacing its internal title with a distinct learner-facing link name, while ensuring teaching resources that share lesson routes retain their own statuses.
+- Files changed: frontend/src/components/v2/V2StageSequence.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md.
+- Result: PASS — focused 9 tests, full 191 frontend tests, production build, and git diff --check; the current route and server-owned availability remain unchanged.
+- Next: Push the focused fix, wait for replacement GitHub CI, inspect review state, and keep PR #55 open.
+
+## [2026-10-04 23:46:44 UTC] Task Completed
+- Task: Preserved the existing unique Service Desk launcher when another learning item is up next, prevented duplicate primary-action link names when the Service Desk task itself is current, and extended the read-only gated Service Desk visual audit through real guided-practice completion.
+- Files changed: frontend/src/components/v2/V2StageSequence.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md; /tmp/nexus-service-desk-ui-audit-2026-10.md, /tmp/nexus-ui-cross-workflow-consistency.md, /var/tmp/nexus-service-desk-ui-audit-deep-20261004/ (outside git).
+- Result: PASS — 192 frontend tests, production build, npm audit zero vulnerabilities, CLI validate/sanity, local P1 desktop/mobile Playwright 2/2, a completed disposable guided-practice browser flow, 18 new screenshots and four contact sheets.
+- Next: Push the focused PR 5 fix, wait for all GitHub CI jobs and review, keep PR #55 open, and leave the independent Service Desk assessment for its dedicated later audit.
