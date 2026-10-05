@@ -281,7 +281,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/service-desk", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "My Service Desk" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Ticket queue", exact: true })).toBeVisible({ timeout: 15_000 });
   await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });

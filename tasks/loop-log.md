@@ -3136,3 +3136,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/p1-service-desk-workspace.spec.js, service-desk-app/apps/web/components/Header.tsx, TicketContextBar.tsx, TicketQueue.tsx, TicketQueueSection.tsx, TicketRow.tsx, TicketWorkspace.tsx, WorkspaceTicketQueue.tsx, WorkspaceTicketQueue.test.tsx, service-desk-app/apps/web/lib/nexus-service-desk-client.ts, nexus-service-desk-client.test.ts, workspace-navigation.ts, workspace-navigation.test.ts, tasks/loop-log.md.
 - Result: PASS focused and full Service Desk tests (527 total), lint, typecheck, build, fresh integrated queue-switch browser test proving V2 attempt context, and guided server PASS; no backend or grading edits.
 - Next: Push follow-up commit, await required CI and review, resolve the addressed thread, keep PR #59 open and unmerged.
+
+## [2026-10-05 21:34 UTC] Task Completed
+- Task: Addressed PR #59 Playwright findings by restoring the generic Nexus return link on direct Service Desk queue/tool entry and updating the queue-heading assertion to the PR 9A label.
+- Files changed: service-desk-app/apps/web/components/Header.tsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS focused fresh-stack desktop queue/tool/mobile return browser check, Service Desk lint, 527 unit tests, typecheck, build, and syntax check. Full local my-training rerun had unrelated Labs/admin error-boundary failures and a Week 0 timeout in its local disposable stack; CI rerun remains required.
+- Next: Push fix, rerun all required GitHub checks, inspect review threads, leave PR #59 open and unmerged.

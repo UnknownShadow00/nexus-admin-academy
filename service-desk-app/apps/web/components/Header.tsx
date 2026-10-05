@@ -59,10 +59,10 @@ export function Header({ currentPath }: HeaderProps) {
                 </span>
               </span>
             </Link>
-            {nexusReturnTarget ? (
+            {!onTicketPage || nexusReturnTarget ? (
               <BackToNexusLink
-                href={nexusReturnTarget.href}
-                label={nexusReturnTarget.label}
+                href={nexusReturnTarget?.href}
+                label={nexusReturnTarget?.label}
               />
             ) : null}
             {onToolPage ? (
