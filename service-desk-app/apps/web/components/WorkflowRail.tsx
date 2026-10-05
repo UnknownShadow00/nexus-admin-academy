@@ -55,16 +55,50 @@ function StageIcon({ status }: Pick<NexusWorkflowStage, 'status'>) {
   return <Icon aria-hidden="true" className="h-5 w-5 shrink-0" />;
 }
 
+function StageItem({
+  stage,
+  index,
+}: {
+  stage: NexusWorkflowStage;
+  index: number;
+}) {
+  const current = stage.status === 'current';
+  return (
+    <li
+      aria-current={current ? 'step' : undefined}
+      className={`min-w-0 border-l-[3px] px-3 py-2 ${
+        current
+          ? 'border-accent bg-accent/10 text-text'
+          : 'border-border bg-surface-raised/50 text-text-muted'
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        <StageIcon status={stage.status} />
+        <div className="min-w-0">
+          <p className="text-xs font-bold leading-snug text-text">
+            {index + 1}. {WORKFLOW_COPY[stage.key].label}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-snug">
+            {STATUS_COPY[stage.status]}
+          </p>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export function WorkflowRail({
   stages,
 }: {
   experienceMode: 'guided' | 'practice' | 'assessment';
   stages: readonly NexusWorkflowStage[];
 }) {
+  const currentIndex = stages.findIndex((stage) => stage.status === 'current');
+  const currentStage = currentIndex >= 0 ? stages[currentIndex] : undefined;
   return (
     <section
       aria-labelledby="workflow-rail-title"
-      className="min-w-0 border-b border-border pb-3"
+      className="min-w-0 border-b border-border pb-4"
       data-group-2-slot="workflow-rail"
     >
       <h2 className="sr-only" id="workflow-rail-title">
@@ -74,43 +108,26 @@ export function WorkflowRail({
         A checked circle means Completed, a dotted circle means Current step,
         and an empty circle means Not started.
       </p>
-      <ol className="hidden flex-wrap gap-x-5 gap-y-2 sm:flex">
-        {stages.map((stage) => {
-          const copy = WORKFLOW_COPY[stage.key];
-          // No per-stage escalation hint: the workspace must never signal that
-          // escalation is the expected outcome before the student decides.
-          return (
-            <li
-              aria-current={stage.status === 'current' ? 'step' : undefined}
-              className={`py-1 ${
-                stage.status === 'current'
-                  ? 'font-semibold text-text'
-                  : stage.status === 'complete'
-                    ? 'text-text'
-                    : 'text-text-muted'
-              }`}
-              key={stage.key}
-            >
-              <div className="flex items-center gap-2">
-                <StageIcon status={stage.status} />
-                <div>
-                  <p className="text-sm font-bold">{copy.label}</p>
-                  <p className="sr-only">{STATUS_COPY[stage.status]}</p>
-                </div>
-              </div>
-            </li>
-          );
-        })}
+      <ol className="hidden gap-1 sm:grid sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+        {stages.map((stage, index) => (
+          <StageItem index={index} key={stage.key} stage={stage} />
+        ))}
       </ol>
-      <p className="text-sm text-text sm:hidden">
-        Current stage:{' '}
-        {
-          WORKFLOW_COPY[
-            stages.find((stage) => stage.status === 'current')?.key ??
-              'document'
-          ].label
-        }
-      </p>
+      <details className="rounded-md border border-border bg-surface-raised sm:hidden">
+        <summary className="sd-focus-ring min-h-12 cursor-pointer px-3 py-3 text-sm font-semibold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus">
+          {currentStage
+            ? `Step ${currentIndex + 1} of ${stages.length}: ${WORKFLOW_COPY[currentStage.key].label}`
+            : 'Ticket workflow'}
+          <span className="ml-2 text-xs font-normal text-text-muted">
+            View all stages
+          </span>
+        </summary>
+        <ol className="grid gap-1 border-t border-border p-2">
+          {stages.map((stage, index) => (
+            <StageItem index={index} key={stage.key} stage={stage} />
+          ))}
+        </ol>
+      </details>
     </section>
   );
 }

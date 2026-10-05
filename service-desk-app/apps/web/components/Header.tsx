@@ -35,7 +35,7 @@ export function Header({ currentPath }: HeaderProps) {
           <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
             <Link
               aria-current={currentPath === '/' ? 'page' : undefined}
-              aria-label="Nexus Service Desk Dashboard"
+              aria-label="Service Desk ticket queue"
               className="sd-focus-ring flex min-w-0 items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               href="/"
             >
@@ -44,17 +44,17 @@ export function Header({ currentPath }: HeaderProps) {
               </span>
               <span className="hidden min-w-0 sm:block">
                 <span className="block truncate font-display text-sm font-bold text-text">
-                  Nexus Desk
+                  Nexus
                 </span>
                 <span className="block text-[10px] font-bold uppercase text-text-muted">
-                  Training Console
+                  Service Desk
                 </span>
               </span>
             </Link>
-            {!onTicketPage ? (
+            {nexusReturnTarget ? (
               <BackToNexusLink
-                href={nexusReturnTarget?.href}
-                label={nexusReturnTarget?.label}
+                href={nexusReturnTarget.href}
+                label={nexusReturnTarget.label}
               />
             ) : null}
             {onToolPage ? (

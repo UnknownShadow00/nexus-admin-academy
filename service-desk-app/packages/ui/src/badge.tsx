@@ -34,13 +34,12 @@ export function Badge({
   );
 }
 
-// A four-step severity ramp built from the semantic tokens, so it stays legible
-// in both themes: danger for the two red tiers, warning for the two amber ones.
+// Low priority uses a neutral token so it cannot be mistaken for completion.
 const priorityClasses: Record<Priority, string> = {
   [Priority.Critical]: 'text-danger',
   [Priority.High]: 'text-danger/85',
   [Priority.Medium]: 'text-warning',
-  [Priority.Low]: 'text-warning/85',
+  [Priority.Low]: 'text-text-muted',
 };
 
 export interface PriorityBadgeProps extends HTMLAttributes<HTMLSpanElement> {

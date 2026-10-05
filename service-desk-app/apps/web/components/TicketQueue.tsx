@@ -50,19 +50,17 @@ export function TicketQueue() {
   const allOpenCount = tickets.filter(isOpenTicket).length;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 md:space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-5 md:space-y-6">
       <header className="flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
             Support operations
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold text-text sm:text-3xl">
-            My Service Desk
+            Ticket queue
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-text-muted">
-            Start with the cases assigned to your shift. Assessment passes
-            demonstrate mastery; passed cases remain replayable without
-            curriculum stakes.
+            Choose an assigned case, or revisit an available practice ticket.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-bold uppercase text-text-muted">
@@ -73,7 +71,9 @@ export function TicketQueue() {
 
       <TicketQueueFilters filters={filters} onChange={setFilters} />
 
-      {progression && progression.current_pack === null ? (
+      {progression &&
+      progression.current_pack === null &&
+      tickets.length === 0 ? (
         <Card className="border-accent/20 bg-accent/5 p-5 sm:p-6">
           <p className="text-xs font-extrabold uppercase tracking-wide text-accent">
             Your first shift is almost ready
@@ -101,42 +101,45 @@ export function TicketQueue() {
 
       {visibleCount > 0 ? (
         <section aria-labelledby="practice-title">
-        <div className="mb-3 flex items-center gap-2">
-          <h2
-            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-text-muted"
-            id="practice-title"
-          >
-            <IconClipboardList
-              aria-hidden="true"
-              className="h-4 w-4 text-accent"
+          <div className="mb-3 flex items-center gap-2">
+            <h2
+              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-text-muted"
+              id="practice-title"
+            >
+              <IconClipboardList
+                aria-hidden="true"
+                className="h-4 w-4 text-accent"
+              />
+              Practice
+            </h2>
+            <span className="ml-auto text-right text-xs font-semibold text-text-muted">
+              Independent replay · no assessment credit
+            </span>
+          </div>
+          {practiceTickets.length > 0 ? (
+            <TicketQueueSection
+              icon={IconRefresh}
+              label="Practice cases"
+              meta={`${practiceTickets.length} unlocked`}
+              tickets={practiceTickets}
+              assignmentByTicket={assignmentByTicket}
             />
-            Practice
-          </h2>
-          <span className="ml-auto text-right text-xs font-semibold text-text-muted">
-            Independent replay · no mastery or XP
-          </span>
-        </div>
-        {practiceTickets.length > 0 ? (
-          <TicketQueueSection
-            icon={IconRefresh}
-            label="Practice cases"
-            meta={`${practiceTickets.length} unlocked`}
-            tickets={practiceTickets}
-            assignmentByTicket={assignmentByTicket}
-          />
-        ) : (
-          <Card className="border-dashed border-border px-4 py-4 text-sm text-text-muted">
-            No mastered cases yet. Pass an assessment to add it here for
-            independent replay.
-          </Card>
-        )}
+          ) : (
+            <Card className="border-dashed border-border px-4 py-4 text-sm text-text-muted">
+              No cases available for replay yet. Pass an assessment to add one
+              here.
+            </Card>
+          )}
         </section>
       ) : null}
 
       {earlierTickets.length > 0 ? (
         <details className="group rounded-md border border-border bg-surface-raised/40">
           <summary className="sd-focus-ring flex cursor-pointer list-none items-center gap-2 rounded-md px-4 py-3 text-sm font-bold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-            <IconHistory aria-hidden="true" className="h-4 w-4 text-text-muted" />
+            <IconHistory
+              aria-hidden="true"
+              className="h-4 w-4 text-text-muted"
+            />
             More unlocked cases
             <span className="ml-auto text-xs font-semibold text-text-muted">
               {earlierTickets.length} unfinished
@@ -217,8 +220,13 @@ export function TicketQueue() {
 
       {visibleCount === 0 && tickets.length > 0 ? (
         <Card className="flex min-h-56 flex-col items-center justify-center px-5 py-10 text-center">
-          <IconFilterOff aria-hidden="true" className="h-9 w-9 text-text-muted" />
-          <h2 className="mt-4 text-base font-bold text-text">No tickets match these filters</h2>
+          <IconFilterOff
+            aria-hidden="true"
+            className="h-9 w-9 text-text-muted"
+          />
+          <h2 className="mt-4 text-base font-bold text-text">
+            No tickets match these filters
+          </h2>
           <p className="mt-2 max-w-md text-sm text-text-muted">
             Clear the filters to return to your unlocked cases.
           </p>

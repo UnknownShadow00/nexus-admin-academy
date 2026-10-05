@@ -92,6 +92,10 @@ test('P0 authenticated beginner: curriculum launcher, trusted work, note rejecti
   expect(module.assessments.find(a => a.key === assessmentKey).progress.status).toBe('passed');
   // The ticket earns its activity credit; it cannot complete untouched lessons.
   expect(module.progress.module_complete).toBe(false);
+  await page.reload();
+  await expect(page.getByText('Independent assessment', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ticket status').locator('.sd-badge')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Assessment result: PASS — module credit earned.', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to your module', exact: true }).last().click();
   await expect(page).toHaveURL(new RegExp(`/learning-v2/modules/${moduleKey}$`));
 });

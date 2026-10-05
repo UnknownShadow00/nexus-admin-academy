@@ -6,7 +6,7 @@ describe('TicketContextBar helpers', () => {
   it('maps every assignment mode to student-facing copy', () => {
     expect(experienceModeLabel('guided')).toBe('Guided Practice');
     expect(experienceModeLabel('practice')).toBe('Practice');
-    expect(experienceModeLabel('assessment')).toBe('Assessment');
+    expect(experienceModeLabel('assessment')).toBe('Independent assessment');
   });
 
   it('only calculates attempts when a maximum exists', () => {

@@ -19,10 +19,14 @@ describe('WorkflowRail', () => {
     const markup = renderToStaticMarkup(
       <WorkflowRail experienceMode="guided" stages={stages} />,
     );
-    expect(markup.match(/<li/g)).toHaveLength(6);
-    expect(markup.match(/Completed/g)).toHaveLength(3);
-    expect(markup).toContain('aria-current="step"');
+    expect(markup.match(/<li/g)).toHaveLength(12);
+    expect(markup.match(/aria-current="step"/g)).toHaveLength(2);
     expect(markup).toContain('Fix / Escalate');
+    expect(markup).toContain('Step 3 of 6: Diagnose');
+    expect(markup).toContain('View all stages');
+    expect(markup).toContain('Not started');
+    expect(markup).not.toContain('<a ');
+    expect(markup).not.toContain('<button');
     expect(markup).not.toContain(
       'Read what the user reports and what work is affected.',
     );

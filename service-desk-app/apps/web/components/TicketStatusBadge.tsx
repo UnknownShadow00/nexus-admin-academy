@@ -1,5 +1,6 @@
 import { TicketStatus } from '@service-desk/shared';
 import { Badge } from '@service-desk/ui';
+import React from 'react';
 
 import { TICKET_STATUS_LABELS } from './ticket-labels';
 
