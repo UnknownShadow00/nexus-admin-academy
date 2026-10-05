@@ -28,6 +28,7 @@ export default function Stage4PracticalWorkspace({
   const waitingReview = lab.review?.status === "awaiting_mentor_review";
   const needsCorrection = lab.review?.status === "needs_correction";
   const approved = lab.review?.status === "passed" && lab.status === "submitted";
+  const handoffTitle = waitingReview ? "Submitted for review" : approved ? "Approved submission" : needsCorrection ? "Review & resubmit" : "Review & send";
   const readOnly = Boolean(prerequisiteLock) || busy || waitingReview || approved;
   const hasFile = evidenceArtifacts.some((item) => item.artifact_type === "file_path");
   const hasObservation = evidenceArtifacts.some((item) => item.artifact_type === "windows_observation");
@@ -89,7 +90,7 @@ export default function Stage4PracticalWorkspace({
     {guacUrl ? <div className="practical-section"><h2>Lab environment</h2><a href={guacUrl} rel="noopener noreferrer" target="_blank">Open in new tab</a><iframe allowFullScreen className="mt-3 h-[60vh] w-full rounded-lg border" src={guacUrl} title="Lab VM" /></div> : null}
 
     <div className="practical-layout">
-      <nav className="practical-rail" aria-label="Practical sections"><p className="type-label">WORKSPACE</p><ol>{sections.map(([id, label], index) => <li key={id}><a href={`#practical-${id}`} aria-current={activeSection === id ? "location" : undefined} onClick={() => setActiveSection(id)}><span aria-hidden="true">{index + 1}</span>{label}</a></li>)}</ol></nav>
+      <nav className="practical-rail" aria-label="Practical sections"><p className="type-label">WORKSPACE</p><ol>{sections.map(([id, label], index) => <li key={id}><a href={`#practical-${id}`} aria-current={activeSection === id ? "location" : undefined} onClick={() => setActiveSection(id)}><span aria-hidden="true">{index + 1}</span>{id === "review" ? handoffTitle : label}</a></li>)}</ol></nav>
       <div className="practical-content">
         <section id="practical-brief" className={sectionClass} aria-labelledby="practical-brief-title">
           <p className="type-label">01 / CONTEXT</p><h2 id="practical-brief-title">Brief</h2>
@@ -137,7 +138,7 @@ export default function Stage4PracticalWorkspace({
         </section>
 
         <section id="practical-review" className={sectionClass} aria-labelledby="practical-review-title">
-          <p className="type-label">05 / HANDOFF</p><h2 id="practical-review-title">Review & send</h2>
+          <p className="type-label">05 / HANDOFF</p><h2 id="practical-review-title">{handoffTitle}</h2>
           <p>Check that the screenshots and note describe the work you actually did.</p>
           <div className="practical-review-summary">
             <div><strong>Evidence</strong><span>{hasFile && hasObservation ? "Both screenshot types uploaded" : "Screenshots still needed"}</span></div>

@@ -72,6 +72,8 @@ it("validates each Stage 4 field, sends structured values, and clears errors aft
   expect(await screen.findByText("Temporary submission error")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Send to mentor" }));
   expect(await screen.findByRole("heading", { name: "With your mentor" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Submitted for review" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Review & send" })).not.toBeInTheDocument();
   expect(screen.getByText(/Your practical was sent to your mentor/)).toBeVisible();
   expect(screen.queryByText(/You can keep learning/)).not.toBeInTheDocument();
   expect(await screen.findByRole("link", { name: /Back to My Course/ })).toHaveAttribute("href", "/learning-v2");
@@ -101,6 +103,7 @@ it("shows mentor correction feedback and resubmission action", async () => {
   getLab.mockResolvedValue({ data: { ...stage4Lab, status: "in_progress", run_id: 42, review: { status: "needs_correction", feedback: "Show the application view" } } });
   mount("/labs/1?v2Module=module.nexus.beginner.stage4&v2Assessment=assess.nexus.beginner.s4.windows_observation");
   expect(await screen.findByRole("heading", { name: "Changes requested" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Review & resubmit" })).toBeVisible();
   expect(screen.getByText("Show the application view")).toBeVisible();
   expect(screen.getByRole("link", { name: "Update your practical" })).toHaveAttribute("href", "#practical-support-note");
 });
@@ -109,6 +112,7 @@ it("calls an approved practical Approved without claiming stage mastery", async 
   getLab.mockResolvedValue({ data: { ...stage4Lab, status: "submitted", review: { status: "passed" } } });
   mount("/labs/1?v2Module=module.nexus.beginner.stage4&v2Assessment=assess.nexus.beginner.s4.windows_observation");
   expect(await screen.findByRole("heading", { name: "Approved" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Approved submission" })).toBeVisible();
   expect(screen.getByText(/stage is mastered only when the remaining requirements are complete/)).toBeVisible();
   expect(screen.queryByText("Stage mastered")).not.toBeInTheDocument();
 });
