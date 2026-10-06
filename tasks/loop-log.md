@@ -3184,3 +3184,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/App.jsx, frontend/tests/e2e/global-nav-reflow.spec.js, tasks/loop-log.md.
 - Result: PASS — focused Playwright 3/3 including closed-menu and open-menu focus restore, frontend 223/223 unit tests and production build. No backend, Service Desk, or curriculum files changed.
 - Next: Push the focused correction to PR #61, await rerun of all required CI and review, leave the PR open, and finish the read-only release candidate audit. No deployment.
+
+## [2026-10-06 05:02 UTC] Task Completed
+- Task: Made the compact-navigation browser regression wait for the real final Progress route after its existing `/progress` to `/skills` redirect, eliminating a timing-sensitive intermediate URL assertion.
+- Files changed: frontend/tests/e2e/global-nav-reflow.spec.js, tasks/loop-log.md.
+- Result: PASS — focused reflow Playwright suite 3/3 against the disposable stack; route active-state assertions remain intact and no product behavior changed.
+- Next: Push to PR #61 and await the final required CI/review run. Leave PR open and production unchanged.
