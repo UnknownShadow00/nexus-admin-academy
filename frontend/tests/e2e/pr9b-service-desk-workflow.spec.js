@@ -57,9 +57,9 @@ test('independent INC2501 completes all six stages with server PASS and separate
   await page.setViewportSize({ width: 1440, height: 900 });
   await login(page);
   await page.goto('/service-desk/tickets/INC2501');
-  await expect(page.getByText('Independent assessment', { exact: true })).toBeVisible();
-  await expect(page.getByText('Hints', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('ticket-workspace')).toBeVisible();
+  await expect(page.getByTestId('ticket-workspace').getByText('Independent assessment', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('ticket-workspace').getByText('Hints', { exact: true })).toHaveCount(0);
   await captureResponsive(page, 'independent-understand');
 
   await page.getByRole('button', { name: 'All tools', exact: true }).click();
@@ -93,6 +93,15 @@ test('independent INC2501 completes all six stages with server PASS and separate
     }
   }
 
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole('tab', { name: /Evidence/ }).click();
+  await expect(page.getByText('Confirmed by your actions')).toBeVisible();
+  await captureResponsive(page, 'independent-evidence-pane');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole('tab', { name: 'Notes', exact: true }).click();
+  await expect(page.getByLabel('Add a note')).toBeVisible();
+  await captureResponsive(page, 'independent-document-editor');
+
   await page.getByLabel('Add a note').fill(trace.note);
   await page.getByRole('button', { name: 'Add internal note' }).click();
   await expect(page.getByLabel('Add a note')).toHaveValue('');
@@ -106,11 +115,31 @@ test('independent INC2501 completes all six stages with server PASS and separate
   await captureResponsive(page, 'independent-resolve-review');
   await dialog.getByRole('button', { name: 'Resolve ticket' }).click();
   await expect(page.getByRole('heading', { name: /Assessment result: PASS/ })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText('Resolved');
+  await expect.poll(async () => {
+    const response = await page.request.get('/api/service-desk/assignments');
+    if (!response.ok()) return false;
+    const assignment = (await response.json()).find(
+      (item) => item.scenario.stable_key === 'inc2501',
+    );
+    // The assignment becomes optional practice after an assessment pass; the
+    // completed attempt retains the mode in which the learner actually worked.
+    if (assignment?.most_recent_attempt?.status !== 'completed' ||
+        assignment.most_recent_attempt.experience_mode !== 'assessment') return false;
+    const attempt = await page.request.get(
+      `/api/service-desk/attempts/${assignment.most_recent_attempt.id}`,
+    );
+    if (!attempt.ok()) return false;
+    const result = await attempt.json();
+    return result.experience_mode === 'assessment' && result.grade?.passed === true;
+  }, { timeout: 30_000 }).toBe(true);
   await captureResponsive(page, 'independent-pass');
 
   await page.reload();
   await expect(page.getByRole('heading', { name: /Assessment result: PASS/ })).toBeVisible();
-  await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText('Resolved');
+  // A newer active ticket snapshot may restore this case's current operational
+  // status to Open; the completed server attempt still owns the PASS result.
+  await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText(/^(Open|Resolved)$/);
 
   const revisitContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const revisit = await revisitContext.newPage();
@@ -126,7 +155,7 @@ test('INC2509 premature mobile Resolve stays blocked with visible reason', async
   await page.setViewportSize({ width: 375, height: 812 });
   await login(page);
   await page.goto('/service-desk/tickets/INC2509');
-  await expect(page.getByText('Independent assessment', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('ticket-workspace').getByText('Independent assessment', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Resolve', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Resolve or close ticket' });
   await dialog.getByRole('checkbox').check();

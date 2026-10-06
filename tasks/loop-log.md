@@ -3166,3 +3166,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: .github/workflows/ci.yml, tasks/loop-log.md.
 - Result: PASS — workflow syntax/diff review; both cases already passed locally on a fresh disposable stack, and CI rerun is pending.
 - Next: Push the CI coverage commit, await every required job and automated review, fix any in-scope findings, and leave PR #60 open/unmerged.
+
+## [2026-10-06 03:19 UTC] Task Completed
+- Task: Corrected the independent workflow browser assertion to verify the completed server attempt by scenario key while keeping operational ticket status separate from historical assessment PASS; captured the real mobile Evidence pane and Document editor and completed the read-only redesign, accessibility, security, performance, and deployment preflight reports outside git.
+- Files changed: frontend/tests/e2e/pr9b-service-desk-workflow.spec.js, tasks/loop-log.md; visual review and preflight reports under /tmp/nexus-service-desk-pr9b-review-20261006-024100/ and /tmp/nexus-*.md are outside git.
+- Result: PASS — fresh disposable Service Desk integrated suite 14/14, P1 workspace 5/5, and independent assessment PASS plus INC2509 validation 2/2; the completed server attempt retains assessment mode and a passing grade even as the assignment moves to optional practice, while a fresh session truthfully shows current ticket Open. All required visual contact sheets and read-only reports exist. GitHub CI rerun remains pending.
+- Next: Commit and push the test correction, wait for all required CI and review, recheck protected state and PR status, and leave PR #60 open and unmerged. No production deployment.
