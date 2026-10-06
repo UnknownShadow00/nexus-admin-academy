@@ -47,6 +47,7 @@ from app.services.grading_schema import AIGradeResponse, GRADING_SCHEMA_VERSION
 from app.services.v2_content_loader import load_module
 from app.services.v2_curriculum_service import (
     explain_view,
+    launch_service_desk,
     module_view,
     resource_activity,
     submit_assessment,
@@ -871,6 +872,63 @@ def test_service_desk_reconciliation_uses_exact_v2_activity_with_both_modes(db, 
     )
     assert still_passed is not None
     assert still_passed.status == "passed"
+
+
+def test_service_desk_launch_recovers_from_assignment_conflict_at_flush(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    module_key = "module.aplus.core1.ip_configuration"
+    assessment_key = "assess.aplus.ipcfg.service_desk"
+    scenario, _ = _seeded_inc2503(db)
+    existing = ServiceDeskAssignment(
+        student_id=student.id, scenario_id=scenario.id, mode="learning",
+        is_required=False, maximum_attempts=1, assigned_by="admin",
+    )
+    db.add(existing)
+    db.commit()
+
+    # Model two requests that both read "no assignment" before either INSERT.
+    # The losing request must recover when its INSERT fails during flush.
+    original_query = db.query
+    stale_read_used = False
+
+    class StaleAssignmentQuery:
+        def __init__(self, query):
+            self.query = query
+
+        def filter_by(self, **kwargs):
+            nonlocal stale_read_used
+            filtered = self.query.filter_by(**kwargs)
+            if not stale_read_used and kwargs == {
+                "student_id": student.id, "scenario_id": scenario.id, "mode": "learning",
+            }:
+                stale_read_used = True
+                return self
+            return filtered
+
+        def one_or_none(self):
+            return None
+
+        def __getattr__(self, name):
+            return getattr(self.query, name)
+
+    def query_with_one_stale_read(*entities, **kwargs):
+        query = original_query(*entities, **kwargs)
+        return StaleAssignmentQuery(query) if len(entities) == 1 and entities[0] is ServiceDeskAssignment else query
+
+    monkeypatch.setattr(db, "query", query_with_one_stale_read)
+    result = launch_service_desk(db, student.id, module_key, assessment_key)
+
+    assert stale_read_used
+    assert result["experience_mode"] == "guided"
+    assert result["launch_url"].startswith("/service-desk/tickets/INC2503?")
+    assignments = original_query(ServiceDeskAssignment).filter_by(
+        student_id=student.id, scenario_id=scenario.id, mode="learning",
+    ).all()
+    assert len(assignments) == 1
+    assert assignments[0].assigned_by == "admin"
+    assert original_query(V2ModuleActivity).filter_by(
+        student_id=student.id, ref_key=assessment_key, status="in_progress",
+    ).count() == 1
 
 
 def test_v2_service_desk_assignment_bypasses_legacy_ladder_only_for_exact_case(db, monkeypatch):
