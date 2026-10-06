@@ -284,7 +284,7 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await page.getByRole("button", { name: "Resolve", exact: true }).click();
   await page.getByLabel("I verified the requester has a working outcome").check();
   await page.getByRole("button", { name: "Continue to review" }).click();
-  await expect(page.getByText("Ready to resolve", { exact: true })).toBeVisible();
+  await expect(page.getByText("Requester confirmation selected", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Resolve ticket", exact: true }).click();
 
   await expect.poll(async () => {

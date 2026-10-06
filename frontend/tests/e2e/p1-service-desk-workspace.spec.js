@@ -316,3 +316,25 @@ test("P1 desktop queue switches tickets and identifies the selected case", async
   await expect(queue.locator('[aria-current="page"]')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: /PDF editor closes/ })).toBeVisible();
 });
+
+test("ticket switch clears the previous case's tool and unsaved note", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await login(page);
+  await page.goto('/service-desk/tickets/INC2509');
+  await page.getByLabel('Add a note').fill('Unsaved observations for INC2509 only.');
+  await page.getByRole('button', { name: 'All tools', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Workspace tools' })
+    .getByRole('button', { name: 'Remote Desktop', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: 'Back to ticket INC2509' })).toBeVisible();
+
+  await page
+    .getByRole('navigation', { name: 'Ticket queue' })
+    .getByRole('link', { name: /INC2403:/ })
+    .click();
+  await expect(page).toHaveURL(/\/service-desk\/tickets\/INC2403$/);
+  await expect(page.getByLabel('Add a note')).toHaveValue('');
+  await expect(page.getByText('Choose a tool above to start working.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to ticket INC2509' })).toHaveCount(0);
+});

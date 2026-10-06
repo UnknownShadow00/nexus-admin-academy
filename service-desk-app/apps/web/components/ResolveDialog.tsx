@@ -9,10 +9,9 @@ import { Button, Modal } from '@service-desk/ui';
 import {
   IconAlertTriangle,
   IconCircleCheck,
-  IconLock,
   IconNote,
 } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { ActionEvent } from '@service-desk/simulation-engine';
 
 interface ResolveDialogProps {
@@ -27,6 +26,8 @@ interface ResolveDialogProps {
     verifiedResolved: boolean;
   }) => ActionEvent;
   status: TicketStatus;
+  ticketId: string;
+  workflowRecorded: boolean;
 }
 
 export function closeRejectionMessage(event: ActionEvent): string {
@@ -60,7 +61,9 @@ export function DocumentationSummary({ note }: { note: string }) {
       />
       <div className="min-w-0">
         <p className="text-sm font-bold text-text">
-          {hasDocumentation ? 'Documentation recorded' : 'Documentation required'}
+          {hasDocumentation
+            ? 'Documentation recorded'
+            : 'Documentation required'}
         </p>
         {hasDocumentation ? (
           <p className="mt-1 whitespace-pre-wrap text-sm text-text-muted">
@@ -92,9 +95,8 @@ export function CloseReviewNotice({ review }: { review: CloseReview }) {
       className={`flex gap-3 rounded-sm border p-4 ${
         unresolved
           ? 'border-warning/40 bg-warning/10'
-          : 'border-success/40 bg-success/10'
+          : 'border-border bg-surface-muted'
       }`}
-      role="alert"
     >
       {unresolved ? (
         <IconAlertTriangle
@@ -102,14 +104,21 @@ export function CloseReviewNotice({ review }: { review: CloseReview }) {
           className="h-5 w-5 shrink-0 text-warning"
         />
       ) : (
-        <IconLock aria-hidden="true" className="h-5 w-5 shrink-0 text-success" />
+        <IconCircleCheck
+          aria-hidden="true"
+          className="h-5 w-5 shrink-0 text-text-muted"
+        />
       )}
       <div>
         <p className="text-sm font-bold text-text">
-          {unresolved ? 'Unresolved close warning' : 'Ready to resolve'}
+          {unresolved
+            ? 'Requester outcome unconfirmed'
+            : 'Requester confirmation selected'}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-text-muted">
-          {review.message}
+          {unresolved
+            ? review.message
+            : 'You marked the requester outcome as verified.'}
         </p>
         <p className="mt-2 text-xs font-semibold text-text-muted">
           Nexus will check your investigation, diagnosis, action, verification,
@@ -124,11 +133,14 @@ export function ResolveDialog({
   documentationNote,
   onConfirm,
   status,
+  ticketId,
+  workflowRecorded,
 }: ResolveDialogProps) {
   const [open, setOpen] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [verifiedResolved, setVerifiedResolved] = useState(false);
   const [rejection, setRejection] = useState('');
+  const rejectionRef = useRef<HTMLParagraphElement>(null);
   const note = documentationNote.trim();
   const effectiveVerified =
     verifiedResolved || status === TicketStatus.Resolved;
@@ -147,12 +159,12 @@ export function ResolveDialog({
 
   return (
     <Modal
-      description="Review the outcome before ending work on this incident."
+      description={`Review ${ticketId} before ending work on this incident.`}
       onOpenChange={handleOpenChange}
       open={open}
       title="Resolve or close ticket"
       trigger={
-        <Button variant="primary">
+        <Button variant={workflowRecorded ? 'primary' : 'soft'}>
           <IconCircleCheck aria-hidden="true" className="h-4 w-4" />
           Resolve
         </Button>
@@ -161,6 +173,13 @@ export function ResolveDialog({
       {!reviewing ? (
         <>
           <DocumentationSummary note={note} />
+          {!workflowRecorded ? (
+            <p className="mt-3 border-l-2 border-warning pl-3 text-sm text-text-muted">
+              The workflow still shows unfinished steps. You can review the
+              outcome here; Nexus checks the actual requirements when you
+              submit.
+            </p>
+          ) : null}
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-sm border border-border bg-surface-muted p-3">
             <input
               checked={verifiedResolved}
@@ -198,8 +217,24 @@ export function ResolveDialog({
               </p>
             </div>
           ) : null}
+          {rejection ? (
+            <p
+              className="mt-4 rounded-sm border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-text"
+              ref={rejectionRef}
+              role="alert"
+            >
+              {rejection}
+            </p>
+          ) : null}
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button onClick={() => setReviewing(false)}>Back</Button>
+            <Button
+              onClick={() => {
+                setRejection('');
+                setReviewing(false);
+              }}
+            >
+              Back
+            </Button>
             <Button
               onClick={() => {
                 const event = onConfirm({
@@ -208,13 +243,18 @@ export function ResolveDialog({
                 });
                 if (!event.success) {
                   setRejection(closeRejectionMessage(event));
+                  requestAnimationFrame(() =>
+                    rejectionRef.current?.scrollIntoView({ block: 'nearest' }),
+                  );
                   return;
                 }
                 setOpen(false);
                 reset();
               }}
               variant={
-                review.kind === 'unresolved-warning' ? 'default' : 'primary'
+                review.kind === 'ready' && workflowRecorded
+                  ? 'primary'
+                  : 'default'
               }
             >
               {review.kind === 'unresolved-warning'
@@ -222,14 +262,6 @@ export function ResolveDialog({
                 : 'Resolve ticket'}
             </Button>
           </div>
-          {rejection ? (
-            <p
-              className="mt-3 rounded-sm border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-text"
-              role="alert"
-            >
-              {rejection}
-            </p>
-          ) : null}
         </>
       )}
     </Modal>

@@ -1,5 +1,4 @@
 import type { TicketDescription } from '@service-desk/shared';
-import { Card, CardHeader } from '@service-desk/ui';
 import { IconFileDescription } from '@tabler/icons-react';
 
 export function TicketIssueDetails({
@@ -8,35 +7,31 @@ export function TicketIssueDetails({
   description: TicketDescription;
 }) {
   return (
-    <Card>
-      <CardHeader
-        title={
-          <span className="flex items-center gap-2">
-            <IconFileDescription
-              aria-hidden="true"
-              className="h-5 w-5 text-accent"
-            />
-            Issue details
-          </span>
-        }
-      />
-      <div className="space-y-5 p-4 text-sm leading-relaxed sm:p-5">
+    <div className="border-t border-border pt-4">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-text">
+        <IconFileDescription
+          aria-hidden="true"
+          className="h-5 w-5 text-accent"
+        />
+        Full report
+      </h3>
+      <div className="mt-4 grid gap-5 text-sm leading-relaxed sm:grid-cols-2">
         <section>
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-text-muted">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             Reported by
-          </h2>
+          </h4>
           <p className="mt-1 text-text">{description.reportedByLine}</p>
         </section>
         <section>
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-text-muted">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             Issue description
-          </h2>
+          </h4>
           <p className="mt-1 text-text">{description.issue}</p>
         </section>
         <section>
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-text-muted">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             Troubleshooting already tried
-          </h2>
+          </h4>
           <ul className="mt-2 space-y-2 text-text">
             {description.troubleshooting.map((step) => (
               <li className="flex gap-2" key={step}>
@@ -48,13 +43,13 @@ export function TicketIssueDetails({
             ))}
           </ul>
         </section>
-        <section className="rounded-sm border border-warning/20 bg-warning/5 p-3">
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-warning">
+        <section>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             Business impact
-          </h2>
+          </h4>
           <p className="mt-1 text-text">{description.businessImpact}</p>
         </section>
       </div>
-    </Card>
+    </div>
   );
 }

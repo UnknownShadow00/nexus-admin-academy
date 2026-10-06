@@ -109,7 +109,9 @@ async function documentAndClose(page: Page, accountCase: AccountCase) {
   await expect(dialog.getByText(resolutionNote, { exact: true })).toBeVisible();
   await dialog.getByRole('checkbox').check();
   await dialog.getByRole('button', { name: 'Continue to review' }).click();
-  await expect(dialog.getByText('Ready to resolve')).toBeVisible();
+  await expect(
+    dialog.getByText('Requester confirmation selected'),
+  ).toBeVisible();
   await dialog.getByRole('button', { name: 'Resolve ticket' }).click();
   await expect(
     page

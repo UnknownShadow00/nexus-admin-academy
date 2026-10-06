@@ -24,7 +24,7 @@ describe('workspace panels', () => {
     );
     expect(markup).toContain('IP configuration checked');
     expect(markup).toContain('Confirmed');
-    expect(markup).toContain('Investigation still needs more evidence.');
+    expect(markup).toContain('Investigate: more confirmed work needed');
     expect(markup).not.toContain('<button');
     expect(markup).not.toContain('<textarea');
   });

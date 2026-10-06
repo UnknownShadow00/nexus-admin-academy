@@ -3,7 +3,7 @@
 import type { TicketNote } from '@service-desk/shared';
 import { Button, Card, CardHeader, Textarea } from '@service-desk/ui';
 import { IconNote, IconPlus } from '@tabler/icons-react';
-import React, { useState, type FormEvent } from 'react';
+import React, { useId, useState, type FormEvent } from 'react';
 
 import { formatActivityTimestamp } from './ticket-labels';
 
@@ -25,6 +25,9 @@ export function ResolutionNotePanel({
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const showPrompts = experienceMode !== 'assessment';
+  const fieldId = useId();
+  const promptId = `${fieldId}-prompt`;
+  const errorId = `${fieldId}-error`;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,31 +90,31 @@ export function ResolutionNotePanel({
         <form onSubmit={handleSubmit}>
           <label
             className="text-xs font-extrabold uppercase tracking-wide text-text-muted"
-            htmlFor="resolution-note"
+            htmlFor={fieldId}
           >
             Add a note
           </label>
           <Textarea
-            aria-describedby={
-              showPrompts ? 'resolution-note-prompts' : undefined
-            }
+            aria-describedby={`${promptId}${error ? ` ${errorId}` : ''}`}
+            aria-invalid={Boolean(error)}
             className="mt-2"
             disabled={submitting}
-            id="resolution-note"
-            onChange={(event) => setBody(event.target.value)}
+            id={fieldId}
+            onChange={(event) => {
+              setBody(event.target.value);
+              if (error) setError('');
+            }}
             placeholder={showPrompts ? NOTE_PROMPTS : 'Write an internal note…'}
             value={body}
           />
-          {showPrompts ? (
-            <p
-              className="mt-2 text-xs leading-5 text-text-muted"
-              id="resolution-note-prompts"
-            >
-              {NOTE_PROMPTS}
-            </p>
-          ) : null}
+          <p className="mt-2 text-xs leading-5 text-text-muted" id={promptId}>
+            {showPrompts
+              ? NOTE_PROMPTS
+              : 'Record the work performed and the observed outcome.'}{' '}
+            At least 20 characters are required to save a note.
+          </p>
           {error ? (
-            <p className="mt-2 text-sm text-warning" role="alert">
+            <p className="mt-2 text-sm text-warning" id={errorId} role="alert">
               {error}
             </p>
           ) : null}
@@ -122,7 +125,7 @@ export function ResolutionNotePanel({
             variant="soft"
           >
             <IconPlus aria-hidden="true" className="h-4 w-4" />
-            Add internal note
+            {submitting ? 'Saving note…' : 'Add internal note'}
           </Button>
         </form>
       </div>
