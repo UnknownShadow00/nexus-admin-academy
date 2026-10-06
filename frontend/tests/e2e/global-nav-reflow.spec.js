@@ -50,12 +50,15 @@ test('learner navigation reflows by available header width and keeps controls re
   }
 
   await page.setViewportSize({ width: 375, height: 812 });
-  for (const [path, label] of [['/', 'Today'], ['/learning-v2', 'My Course'], ['/skills', 'Progress'], ['/learning-path', 'Extra Practice']]) {
-    await page.goto(path);
-    await expect(page.getByRole('navigation', { name: 'Mobile primary navigation', exact: true }).getByRole('link', { name: label, current: 'page' })).toBeVisible();
+  const mobileNav = page.getByRole('navigation', { name: 'Mobile primary navigation', exact: true });
+  await expect(mobileNav.getByRole('link', { name: 'Today', current: 'page' })).toBeVisible();
+  for (const [label, path] of [['My Course', '/learning-v2'], ['Progress', '/progress'], ['Extra Practice', '/learning-path'], ['Today', '/']]) {
+    await mobileNav.getByRole('link', { name: label }).click();
+    await expect(page).toHaveURL(new URL(path, process.env.NEXUS_E2E_BASE_URL).href);
+    await expect(mobileNav.getByRole('link', { name: label, current: 'page' })).toBeVisible();
     await assertNoPageOverflow(page);
   }
-  await expect(page.getByRole('navigation', { name: 'Mobile primary navigation', exact: true }).getByRole('link', { name: 'Service Desk' })).toHaveAttribute('href', '/service-desk');
+  await expect(mobileNav.getByRole('link', { name: 'Service Desk' })).toHaveAttribute('href', '/service-desk');
 
   const toggle = page.getByRole('button', { name: 'Toggle menu' });
   await toggle.click();
@@ -89,6 +92,13 @@ test('CSS zoom surrogate collapses the learner header and restores focus when it
   await expect(page.locator('#app-mobile-menu')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Nexus Admin Academy home' })).toBeFocused();
   await expect(page.getByRole('navigation', { name: 'Primary navigation', exact: true })).toBeVisible();
+
+  await page.evaluate(() => { document.body.style.zoom = '2'; });
+  await expect(toggle).toBeVisible();
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await toggle.focus();
+  await page.evaluate(() => { document.body.style.zoom = '1'; });
+  await expect(page.getByRole('link', { name: 'Nexus Admin Academy home' })).toBeFocused();
 });
 
 test('admin header keeps its compact navigation and role boundary at reflow widths', async ({ page }) => {

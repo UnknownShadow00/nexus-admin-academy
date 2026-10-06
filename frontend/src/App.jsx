@@ -248,6 +248,7 @@ export default function App() {
   const headerRef = useRef(null);
   const menuButton = useRef(null);
   const menuPanel = useRef(null);
+  const lastFocusedCompactControl = useRef(false);
   const showChrome = (authenticated && !isAdminRoute && !passwordChangeRequired) || (isAdminRoute && adminAuthenticated);
   const showSearch = authenticated && !isAdminRoute && !isAdminLoginRoute && !passwordChangeRequired;
   const hasSearchResults = searchResults.lessons?.length || searchResults.commands?.length;
@@ -301,19 +302,30 @@ export default function App() {
   useEffect(() => {
     const header = headerRef.current;
     if (!header) return undefined;
-    const closeOnWideHeader = () => {
-      if (header.clientWidth < (isAdminRoute ? 1440 : 1280) || !menuPanel.current) return;
-      if (menuPanel.current.contains(document.activeElement)) brandLink.current?.focus();
-      setMobileOpen(false);
+    const rememberCompactFocus = (event) => {
+      lastFocusedCompactControl.current = event.target === menuButton.current || Boolean(menuPanel.current?.contains(event.target));
     };
+    const closeOnWideHeader = () => {
+      if (header.clientWidth < (isAdminRoute ? 1440 : 1280)) return;
+      if (lastFocusedCompactControl.current) brandLink.current?.focus();
+      if (menuPanel.current) setMobileOpen(false);
+      lastFocusedCompactControl.current = false;
+    };
+    document.addEventListener("focusin", rememberCompactFocus);
     closeOnWideHeader();
     if (typeof ResizeObserver === "undefined") {
       window.addEventListener("resize", closeOnWideHeader);
-      return () => window.removeEventListener("resize", closeOnWideHeader);
+      return () => {
+        window.removeEventListener("resize", closeOnWideHeader);
+        document.removeEventListener("focusin", rememberCompactFocus);
+      };
     }
     const observer = new ResizeObserver(closeOnWideHeader);
     observer.observe(header);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("focusin", rememberCompactFocus);
+    };
   }, [isAdminRoute, showChrome]);
 
   useEffect(() => {

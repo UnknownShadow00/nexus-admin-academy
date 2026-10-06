@@ -3178,3 +3178,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: .github/workflows/ci.yml, frontend/src/App.jsx, frontend/src/App.navigation.test.jsx, frontend/src/styles.css, frontend/tests/e2e/global-nav-reflow.spec.js, tasks/loop-log.md; visual review and reflow matrix under /tmp/nexus-ui-pr61-accessibility-review-20261006-043250/ and /tmp/nexus-pr61-reflow-matrix.md remain outside git.
 - Result: PASS for the implemented scope — frontend 223 tests, audit with zero findings, build, CLI validate/sanity; Service Desk lint/typecheck/tests/build/high-severity audit; focused Playwright 3/3; backend targeted 70 tests; no overflow at 1440–320 CSS px or the CSS zoom surrogate; protected Stage 4 SHA and sole Alembic head unchanged. Actual browser 200% zoom could not be confirmed. A broader local browser run hit host resource exhaustion; isolated GitHub CI remains pending.
 - Next: Commit and open PR #61, await all required CI and review, fix in-scope findings, leave it unmerged, then complete the read-only release candidate audit and deployment runbook. No deployment or cleanup.
+
+## [2026-10-06 04:58 UTC] Task Completed
+- Task: Fixed the confirmed keyboard focus loss when an idle compact menu button becomes hidden during header expansion; tightened the reflow browser test to follow real SPA navigation, avoiding repeated reloads that exhausted the local browser host.
+- Files changed: frontend/src/App.jsx, frontend/tests/e2e/global-nav-reflow.spec.js, tasks/loop-log.md.
+- Result: PASS — focused Playwright 3/3 including closed-menu and open-menu focus restore, frontend 223/223 unit tests and production build. No backend, Service Desk, or curriculum files changed.
+- Next: Push the focused correction to PR #61, await rerun of all required CI and review, leave the PR open, and finish the read-only release candidate audit. No deployment.
