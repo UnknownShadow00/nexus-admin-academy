@@ -207,10 +207,10 @@ export function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
   );
 }
 
-export function BottomNav({ items }) {
+export function BottomNav({ items, menuOpen = false }) {
   const location = useLocation();
   const coursePractical = isCoursePracticalLocation(location);
-  return <nav aria-label="Mobile primary navigation" className="app-bottom-nav">
+  return <nav aria-label="Mobile primary navigation" aria-hidden={menuOpen || undefined} className="app-bottom-nav" inert={menuOpen ? "" : undefined}>
     {items.map((item) => {
       const target = item.children?.[0] || item;
       const active = isNavItemActive(item, location, coursePractical);
@@ -245,8 +245,10 @@ export default function App() {
   const accountButton = useRef(null);
   const accountPanel = useRef(null);
   const brandLink = useRef(null);
+  const headerRef = useRef(null);
   const menuButton = useRef(null);
   const menuPanel = useRef(null);
+  const lastFocusedCompactControl = useRef(false);
   const showChrome = (authenticated && !isAdminRoute && !passwordChangeRequired) || (isAdminRoute && adminAuthenticated);
   const showSearch = authenticated && !isAdminRoute && !isAdminLoginRoute && !passwordChangeRequired;
   const hasSearchResults = searchResults.lessons?.length || searchResults.commands?.length;
@@ -287,16 +289,44 @@ export default function App() {
   useEffect(() => { if (mobileOpen) menuPanel.current?.querySelector("a, button")?.focus(); }, [mobileOpen]);
 
   useEffect(() => {
-    const desktop = window.matchMedia(isAdminRoute ? "(min-width: 1440px)" : "(min-width: 1280px)");
-    const closeOnDesktop = () => {
-      if (!desktop.matches || !menuPanel.current) return;
-      if (menuPanel.current.contains(document.activeElement)) brandLink.current?.focus();
+    if (!mobileOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key !== "Escape") return;
       setMobileOpen(false);
+      menuButton.current?.focus();
     };
-    closeOnDesktop();
-    desktop.addEventListener("change", closeOnDesktop);
-    return () => desktop.removeEventListener("change", closeOnDesktop);
-  }, [isAdminRoute]);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return undefined;
+    const rememberCompactFocus = (event) => {
+      lastFocusedCompactControl.current = event.target === menuButton.current || Boolean(menuPanel.current?.contains(event.target));
+    };
+    const closeOnWideHeader = () => {
+      if (header.clientWidth < (isAdminRoute ? 1440 : 1280)) return;
+      if (lastFocusedCompactControl.current) brandLink.current?.focus();
+      if (menuPanel.current) setMobileOpen(false);
+      lastFocusedCompactControl.current = false;
+    };
+    document.addEventListener("focusin", rememberCompactFocus);
+    closeOnWideHeader();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", closeOnWideHeader);
+      return () => {
+        window.removeEventListener("resize", closeOnWideHeader);
+        document.removeEventListener("focusin", rememberCompactFocus);
+      };
+    }
+    const observer = new ResizeObserver(closeOnWideHeader);
+    observer.observe(header);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("focusin", rememberCompactFocus);
+    };
+  }, [isAdminRoute, showChrome]);
 
   useEffect(() => {
     if (!searchOpen && !accountOpen) return undefined;
@@ -344,7 +374,7 @@ export default function App() {
   return (
     <div className="app-root">
       {showChrome ? <>
-        <header className={`app-header${isAdminRoute ? " app-header-admin" : ""}`}>
+        <header ref={headerRef} className={`app-header${isAdminRoute ? " app-header-admin" : ""}`}>
           <div className="app-header-inner">
             <Link ref={brandLink} className="app-brand" to={isAdminRoute ? "/admin" : "/"} aria-label="Nexus Admin Academy home">
               <span className="app-brand-mark" aria-hidden="true">N</span>
@@ -383,7 +413,7 @@ export default function App() {
           </div>
           {mobileOpen ? <>
             <div className="app-menu-backdrop" aria-hidden="true" onClick={() => { setMobileOpen(false); menuButton.current?.focus(); }} />
-            <div ref={menuPanel} id="app-mobile-menu" className="app-menu-panel" onKeyDown={(event) => { if (event.key === "Escape") { setMobileOpen(false); menuButton.current?.focus(); } }}>
+            <div ref={menuPanel} id="app-mobile-menu" className="app-menu-panel">
               <div className="app-menu-inner">
                 <AppNav items={navItems} isAdminRoute={isAdminRoute} onNavigate={() => setMobileOpen(false)} mobile />
                 {!isAdminRoute ? <div className="app-menu-actions"><ReportIssueButton /></div> : null}
@@ -391,9 +421,9 @@ export default function App() {
             </div>
           </> : null}
         </header>
-        {!isAdminRoute ? <BottomNav items={navItems} /> : null}
+        {!isAdminRoute ? <BottomNav items={navItems} menuOpen={mobileOpen} /> : null}
       </> : null}
-      <div className={showChrome && !isAdminRoute ? "app-main-with-bottom-nav" : ""}>
+      <div className={showChrome && !isAdminRoute ? "app-main-with-bottom-nav" : ""} aria-hidden={mobileOpen || undefined} inert={mobileOpen ? "" : undefined}>
       <Suspense fallback={<div className="mx-auto max-w-3xl p-6" role="status">Loading page...</div>}>
       <MonitoredRoutes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />

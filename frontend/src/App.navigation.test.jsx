@@ -26,6 +26,12 @@ describe('student navigation', () => {
     expect(nav).not.toHaveTextContent('Security+');
   });
 
+  it('removes the bottom navigation from keyboard and accessibility navigation while the menu is open', () => {
+    render(<MemoryRouter><BottomNav items={buildStudentNavItems(true)} menuOpen /></MemoryRouter>);
+    expect(document.querySelector('.app-bottom-nav')).toHaveAttribute('inert');
+    expect(screen.queryByRole('navigation', { name: 'Mobile primary navigation' })).not.toBeInTheDocument();
+  });
+
   it('marks the Progress destination active at its existing /skills route', () => {
     render(<MemoryRouter initialEntries={['/skills']}><AppNav items={buildStudentNavItems(true)} isAdminRoute={false} /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Progress', current: 'page' })).toBeInTheDocument();

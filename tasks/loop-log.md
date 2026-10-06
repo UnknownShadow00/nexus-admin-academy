@@ -3172,3 +3172,27 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/pr9b-service-desk-workflow.spec.js, tasks/loop-log.md; visual review and preflight reports under /tmp/nexus-service-desk-pr9b-review-20261006-024100/ and /tmp/nexus-*.md are outside git.
 - Result: PASS — fresh disposable Service Desk integrated suite 14/14, P1 workspace 5/5, and independent assessment PASS plus INC2509 validation 2/2; the completed server attempt retains assessment mode and a passing grade even as the assignment moves to optional practice, while a fresh session truthfully shows current ticket Open. All required visual contact sheets and read-only reports exist. GitHub CI rerun remains pending.
 - Next: Commit and push the test correction, wait for all required CI and review, recheck protected state and PR status, and leave PR #60 open and unmerged. No production deployment.
+
+## [2026-10-06 04:50 UTC] Task Completed
+- Task: Reproduced the global learner header overflow under narrowed effective width and implemented a focused PR #61 container-width navigation reflow fix, compact menu keyboard isolation, small-screen touch targets, and focused browser/unit regression coverage.
+- Files changed: .github/workflows/ci.yml, frontend/src/App.jsx, frontend/src/App.navigation.test.jsx, frontend/src/styles.css, frontend/tests/e2e/global-nav-reflow.spec.js, tasks/loop-log.md; visual review and reflow matrix under /tmp/nexus-ui-pr61-accessibility-review-20261006-043250/ and /tmp/nexus-pr61-reflow-matrix.md remain outside git.
+- Result: PASS for the implemented scope — frontend 223 tests, audit with zero findings, build, CLI validate/sanity; Service Desk lint/typecheck/tests/build/high-severity audit; focused Playwright 3/3; backend targeted 70 tests; no overflow at 1440–320 CSS px or the CSS zoom surrogate; protected Stage 4 SHA and sole Alembic head unchanged. Actual browser 200% zoom could not be confirmed. A broader local browser run hit host resource exhaustion; isolated GitHub CI remains pending.
+- Next: Commit and open PR #61, await all required CI and review, fix in-scope findings, leave it unmerged, then complete the read-only release candidate audit and deployment runbook. No deployment or cleanup.
+
+## [2026-10-06 04:58 UTC] Task Completed
+- Task: Fixed the confirmed keyboard focus loss when an idle compact menu button becomes hidden during header expansion; tightened the reflow browser test to follow real SPA navigation, avoiding repeated reloads that exhausted the local browser host.
+- Files changed: frontend/src/App.jsx, frontend/tests/e2e/global-nav-reflow.spec.js, tasks/loop-log.md.
+- Result: PASS — focused Playwright 3/3 including closed-menu and open-menu focus restore, frontend 223/223 unit tests and production build. No backend, Service Desk, or curriculum files changed.
+- Next: Push the focused correction to PR #61, await rerun of all required CI and review, leave the PR open, and finish the read-only release candidate audit. No deployment.
+
+## [2026-10-06 05:02 UTC] Task Completed
+- Task: Made the compact-navigation browser regression wait for the real final Progress route after its existing `/progress` to `/skills` redirect, eliminating a timing-sensitive intermediate URL assertion.
+- Files changed: frontend/tests/e2e/global-nav-reflow.spec.js, tasks/loop-log.md.
+- Result: PASS — focused reflow Playwright suite 3/3 against the disposable stack; route active-state assertions remain intact and no product behavior changed.
+- Next: Push to PR #61 and await the final required CI/review run. Leave PR open and production unchanged.
+
+## [2026-10-06 05:18 UTC] Task Completed
+- Task: Completed the read-only whole-product PR #61 release-candidate audit, verified PR #51–#61 history, inspected current production state without mutation, and prepared the exact deployment/rollback runbook, safe smoke plan, release blockers, and go/no-go assessment outside git.
+- Files changed: tasks/loop-log.md; /tmp/nexus-ui-release-candidate-audit-20261006.md, /tmp/nexus-ui-redesign-production-runbook.md, /tmp/nexus-ui-redesign-production-smoke-plan.md, /tmp/nexus-ui-redesign-release-blockers.md, and /tmp/nexus-ui-redesign-go-no-go.md are outside git.
+- Result: PASS for read-only preparation — PR #61 remained open, no production deployment/service/flag/DB change occurred, protected Stage 4 SHA and sole Alembic head were confirmed. Production release is NO-GO pending PR merge, disk/serving-tree gates and planned schema advancement; final PR-head CI/review remains pending.
+- Next: Push this log-only commit, await every required CI/review job on the final head, fix in-scope findings if any, and leave PR #61 open/unmerged. No deployment or cleanup.

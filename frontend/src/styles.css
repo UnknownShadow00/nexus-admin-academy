@@ -376,7 +376,7 @@
 
 @layer components {
   .app-root { min-height: 100vh; min-height: 100dvh; background: var(--nexus-canvas); color: var(--nexus-text); }
-  .app-header { position: sticky; top: 0; z-index: 40; border-bottom: 1px solid var(--nexus-border); background: var(--nexus-surface); }
+  .app-header { position: sticky; top: 0; z-index: 40; container-type: inline-size; border-bottom: 1px solid var(--nexus-border); background: var(--nexus-surface); }
   .app-header-inner { display: flex; align-items: center; gap: 1.25rem; width: min(100%, var(--nexus-workspace-width)); min-height: 4.25rem; margin-inline: auto; padding-inline: 1rem; }
   .app-brand { display: inline-flex; flex: none; align-items: center; gap: .65rem; min-width: 0; color: var(--nexus-text); text-decoration: none; }
   .app-brand-mark { display: grid; flex: none; place-items: center; width: 2.15rem; height: 2.15rem; border-radius: .65rem; background: var(--nexus-action); color: #fff; font-size: 1.05rem; font-weight: 800; letter-spacing: -.08em; }
@@ -395,7 +395,7 @@
   .app-icon-button:hover, .app-icon-button[aria-expanded="true"] { background: var(--nexus-surface-subtle); color: var(--nexus-text); }
   .app-popover-anchor { position: relative; }
   .app-popover { position: absolute; top: calc(100% + .65rem); right: 0; z-index: 52; width: min(22rem, calc(100vw - 2rem)); padding: .85rem; border: 1px solid var(--nexus-border-strong); border-radius: .9rem; background: var(--nexus-surface-raised); box-shadow: 0 14px 32px rgb(0 0 0 / .16); color: var(--nexus-text); }
-  .app-account-button { display: inline-flex; min-height: 2.65rem; align-items: center; gap: .5rem; padding: .22rem .38rem; border: 1px solid transparent; border-radius: .75rem; background: transparent; color: var(--nexus-text); font-size: .85rem; font-weight: 650; }
+  .app-account-button { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .5rem; padding: .22rem .38rem; border: 1px solid transparent; border-radius: .75rem; background: transparent; color: var(--nexus-text); font-size: .85rem; font-weight: 650; }
   .app-account-button:hover, .app-account-button[aria-expanded="true"] { background: var(--nexus-surface-subtle); }
   .app-account-avatar { display: grid; flex: none; place-items: center; width: 2.05rem; height: 2.05rem; border: 1px solid var(--nexus-border-strong); border-radius: .6rem; background: var(--nexus-surface-selected); color: var(--nexus-link); font-size: .72rem; font-weight: 800; }
   .app-menu-backdrop { position: fixed; inset: 4.25rem 0 0; z-index: 41; background: rgb(12 22 27 / .28); }
@@ -414,13 +414,17 @@
   @media (min-width: 640px) { .app-header-inner { padding-inline: 1.75rem; } }
   @media (min-width: 640px) { .app-admin-actions { padding-inline: 1.75rem; } }
   @media (min-width: 1280px) {
-    .app-nav { display: flex; }
-    .app-menu-toggle, .app-bottom-nav { display: none; }
+    .app-bottom-nav { display: none; }
     .app-main-with-bottom-nav { padding-bottom: 0; }
   }
-  @media (min-width: 1280px) and (max-width: 1439px) {
-    .app-header-admin .app-nav { display: none; }
-    .app-header-admin .app-menu-toggle { display: inline-grid; }
+  /* A zoomed header can have less room than its viewport media query implies. */
+  @container (min-width: 1280px) {
+    .app-header:not(.app-header-admin) .app-nav { display: flex; }
+    .app-header:not(.app-header-admin) .app-menu-toggle { display: none; }
+  }
+  @container (min-width: 1440px) {
+    .app-header-admin .app-nav { display: flex; }
+    .app-header-admin .app-menu-toggle { display: none; }
   }
   @media (max-width: 420px) {
     .app-header-inner { gap: .35rem; padding-inline: .75rem; }
@@ -428,7 +432,10 @@
     .app-brand-mark { width: 2rem; height: 2rem; }
     .app-brand-title { font-size: .88rem; }
     .app-brand-subtitle { font-size: .54rem; }
-    .app-icon-button { width: 2.38rem; height: 2.5rem; }
+    .app-icon-button { width: 2.75rem; height: 2.75rem; }
+  }
+  @media (max-width: 360px) {
+    .app-brand-subtitle { display: none; }
   }
 }
 
