@@ -3196,3 +3196,15 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: tasks/loop-log.md; /tmp/nexus-ui-release-candidate-audit-20261006.md, /tmp/nexus-ui-redesign-production-runbook.md, /tmp/nexus-ui-redesign-production-smoke-plan.md, /tmp/nexus-ui-redesign-release-blockers.md, and /tmp/nexus-ui-redesign-go-no-go.md are outside git.
 - Result: PASS for read-only preparation — PR #61 remained open, no production deployment/service/flag/DB change occurred, protected Stage 4 SHA and sole Alembic head were confirmed. Production release is NO-GO pending PR merge, disk/serving-tree gates and planned schema advancement; final PR-head CI/review remains pending.
 - Next: Push this log-only commit, await every required CI/review job on the final head, fix in-scope findings if any, and leave PR #61 open/unmerged. No deployment or cleanup.
+
+## [2026-10-06 07:21 UTC] Task Completed
+- Task: Reproduced the final-main V2 Service Desk concurrent-launch 500 on disposable data and added a focused idempotency fix for assignment conflicts raised at flush.
+- Files changed: backend/app/services/v2_curriculum_service.py, backend/tests/test_v2_runtime_stabilization.py, tasks/loop-log.md.
+- Result: PASS — 12 concurrent disposable launches on baseline returned 5 HTTP 200 and 7 HTTP 500; the deterministic flush-conflict regression and 62 focused V2/backend tests pass with the fix. Ruff, pip-audit, and diff checks pass. No scoring, state-machine, production, or schema changes.
+- Next: Open the isolated release-hardening PR, await CI and review, then merge only through a separately authorized release decision. Current redesign main remains NO-GO for deployment.
+
+## [2026-10-06 07:40 UTC] Task Completed
+- Task: Merged verified PR #61, recovered root disk space safely, validated a clean release candidate, rehearsed synthetic 0073-to-0076 backup/migration/restore, inspected production schema read-only, and prepared release runbooks and a NO-GO decision. Isolated the concurrent-launch blocker in PR #62.
+- Files changed: tasks/loop-log.md, backend/app/services/v2_curriculum_service.py, backend/tests/test_v2_runtime_stabilization.py; release analysis, cleanup log, migration evidence, and deployment plans were written outside git under /tmp.
+- Result: PASS for release preflight and safe cleanup; NO-GO for deployment while PR #62 remains open, the serving checkout is dirty, and image-build headroom is unproven. No production database, service, flag, or deployment changed.
+- Next: Complete PR #62 CI/review, merge only after review, validate its future main SHA, preserve and reconcile the serving task log, and secure sufficient image-build headroom before a separately approved production window.

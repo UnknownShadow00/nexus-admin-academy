@@ -1173,7 +1173,16 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
         # enrollment and revocation cannot silently alter the V1 experience.
         if (assignment.assigned_by or "").startswith("v2_curriculum:"):
             assignment.is_required = True
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        # A concurrent launch can insert the same assignment after our read.
+        db.rollback()
+        assignment = db.query(ServiceDeskAssignment).filter_by(
+            student_id=student_id, scenario_id=scenario.id, mode=assignment_mode
+        ).one_or_none()
+        if assignment is None:
+            raise
     if not service_desk_has_attempt_capacity(db, assessment, student_id):
         raise V2ProgressError(
             "The retry limit for this troubleshooting activity has been reached. "
