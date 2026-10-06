@@ -3160,3 +3160,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/package-lock.json, frontend/tests/e2e/p1-service-desk-workspace.spec.js, frontend/tests/e2e/pr9b-service-desk-workflow.spec.js, frontend/tests/e2e/service-desk-integration.spec.js, service-desk-app/apps/web/components/EvidencePanel.tsx, OutcomeBar.tsx, ResolutionNotePanel.tsx, ResolveDialog.tsx, ResolveDialog.test.tsx, TicketDebrief.tsx, TicketIssueDetails.tsx, TicketWorkspace.tsx, WorkspacePanels.test.tsx, p0-resolution-note.test.tsx, service-desk-app/package.json, service-desk-app/pnpm-lock.yaml, service-desk-app/tests/e2e/account-support-workflows.spec.ts, remote-desktop-workflows.spec.ts, tasks/loop-log.md.
 - Result: PASS — Service Desk 530 tests, lint, typecheck, build, 7 standalone browser tests, 14 integrated browser tests, full guided server PASS, full independent server PASS, INC2509 blocked mobile Resolve, historical PASS/current Open, 720 CSS-pixel and 375 mobile no overflow, frontend 222 tests/build/CLI validate/sanity, high-severity audits, protected Stage 4 SHA, and sole Alembic head. Headless browser shortcut did not change actual zoom; CSS-width equivalent was checked.
 - Next: Commit and open PR 9B; await all CI and review, fix in-scope findings, leave PR open/unmerged; complete read-only final redesign and deployment preflight. No deployment.
+
+## [2026-10-06 03:06 UTC] Task Completed
+- Task: Added the real independent Service Desk PASS and blocked INC2509 mobile Resolve browser journey to required Playwright CI in fresh-fixture order before the guided P0 completion.
+- Files changed: .github/workflows/ci.yml, tasks/loop-log.md.
+- Result: PASS — workflow syntax/diff review; both cases already passed locally on a fresh disposable stack, and CI rerun is pending.
+- Next: Push the CI coverage commit, await every required job and automated review, fix any in-scope findings, and leave PR #60 open/unmerged.
