@@ -467,6 +467,10 @@ jobs:
         working-directory: frontend
         run: npx playwright test tests/e2e/p1-service-desk-workspace.spec.js --workers=1 --reporter=list
 
+      - name: Independent Service Desk workflow and blocked mobile resolution
+        working-directory: frontend
+        run: npx playwright test tests/e2e/pr9b-service-desk-workflow.spec.js --workers=1 --reporter=list
+
       - name: Authenticated P0 beginner integrity path
         working-directory: frontend
         run: npx playwright test tests/e2e/p0-service-desk-beginner.spec.js --reporter=list

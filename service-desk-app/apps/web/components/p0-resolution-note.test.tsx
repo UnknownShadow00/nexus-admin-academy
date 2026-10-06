@@ -69,6 +69,10 @@ describe('P0 Finding D — rejected Resolution Note feedback', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       'what you tested',
     );
+    expect(textarea.getAttribute('aria-invalid')).toBe('true');
+    const errorId = container.querySelector('[role="alert"]')?.id;
+    expect(errorId).toBeTruthy();
+    expect(textarea.getAttribute('aria-describedby')).toContain(errorId);
   });
 
   it('clears the editor only after success', async () => {

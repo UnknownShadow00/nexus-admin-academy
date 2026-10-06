@@ -3,13 +3,14 @@ import { IconCheck, IconClipboardCheck } from '@tabler/icons-react';
 import React from 'react';
 
 import type { NexusWorkspaceView } from '../lib/nexus-service-desk-client';
+import { WORKFLOW_COPY } from './WorkflowRail';
 
 export function EvidencePanel({
   workspaceView,
 }: {
   workspaceView: NexusWorkspaceView;
 }) {
-  const needsMoreEvidence = workspaceView.stages.some(
+  const needsMoreEvidence = workspaceView.stages.filter(
     (stage) =>
       !['understand', 'document'].includes(stage.key) &&
       stage.needs_more_evidence,
@@ -54,10 +55,17 @@ export function EvidencePanel({
             No evidence confirmed yet.
           </p>
         )}
-        {needsMoreEvidence ? (
-          <p className="mt-3 text-xs text-text-muted">
-            Investigation still needs more evidence.
-          </p>
+        {needsMoreEvidence.length ? (
+          <div className="mt-3 border-t border-border pt-3 text-xs text-text-muted">
+            <p className="font-semibold text-text">Work still to confirm</p>
+            <ul className="mt-1 space-y-1">
+              {needsMoreEvidence.map((stage) => (
+                <li key={stage.key}>
+                  {WORKFLOW_COPY[stage.key].label}: more confirmed work needed
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </div>
     </Card>

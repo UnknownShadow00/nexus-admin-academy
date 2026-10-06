@@ -1,7 +1,7 @@
 'use client';
 
 import type { Ticket } from '@service-desk/shared';
-import { Button, Card, CardHeader } from '@service-desk/ui';
+import { Button } from '@service-desk/ui';
 import {
   IconArrowLeft,
   IconCircleCheck,
@@ -135,20 +135,16 @@ export function TicketDebrief({
 
   if (!debrief) {
     return (
-      <section className="mx-auto max-w-3xl space-y-4">
-        <Card>
-          <div className="p-5">
-            <h1 className="text-lg font-bold text-text">
-              {learnerOutcomeCopy(grade)}
-            </h1>
-            <p className="mt-1 text-sm text-text-muted">
-              {grade.feedback_summary}
-            </p>
-            <p className="mt-2 text-sm text-text">
-              Score: {grade.overall_score}
-            </p>
-          </div>
-        </Card>
+      <section className="mx-auto max-w-3xl space-y-5">
+        <header className="border-b border-border pb-5">
+          <h2 className="text-lg font-bold text-text">
+            {learnerOutcomeCopy(grade)}
+          </h2>
+          <p className="mt-2 text-sm text-text-muted">
+            {grade.feedback_summary}
+          </p>
+          <p className="mt-2 text-sm text-text">Score: {grade.overall_score}</p>
+        </header>
         <div className="flex flex-wrap gap-3">{retryControls}</div>
       </section>
     );
@@ -160,44 +156,50 @@ export function TicketDebrief({
   return (
     <section
       aria-label="Ticket debrief"
-      className="mx-auto max-w-3xl space-y-4"
+      className="mx-auto max-w-3xl space-y-6"
     >
-      <Card>
-        <div className="p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
-            {ticket.id} · debrief
-          </p>
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <h1
-              className={`text-2xl font-bold ${grade.passed ? 'text-success' : 'text-warning'}`}
-            >
-              {learnerOutcomeCopy(grade)}
-            </h1>
-            <span className="text-sm text-text">
-              Process score {result.score}
+      <header className="border-b border-border pb-5">
+        <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
+          {ticket.id} · debrief
+        </p>
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h2 className="text-xl font-bold text-text sm:text-2xl">
+            {learnerOutcomeCopy(grade)}
+          </h2>
+          <span className="text-sm text-text">
+            Process score {result.score}
+          </span>
+          {result.attempts_remaining !== null ? (
+            <span className="text-sm text-text-muted">
+              {result.attempts_remaining} attempt
+              {result.attempts_remaining === 1 ? '' : 's'} remaining
             </span>
-            {result.attempts_remaining !== null ? (
-              <span className="text-sm text-text-muted">
-                {result.attempts_remaining} attempt
-                {result.attempts_remaining === 1 ? '' : 's'} remaining
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-2 text-sm text-text">{grade.feedback_summary}</p>
+          ) : null}
         </div>
-      </Card>
+        <p className="mt-2 text-sm text-text">{grade.feedback_summary}</p>
+      </header>
 
       {debrief.categories.length > 0 ? (
-        <Card>
-          <CardHeader
-            meta={limited ? 'Where to focus' : 'What counted'}
-            title="Process"
-          />
+        <section
+          aria-labelledby="debrief-process"
+          className="border-b border-border pb-5"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <h3
+              className="text-base font-semibold text-text"
+              id="debrief-process"
+            >
+              Process
+            </h3>
+            <span className="text-xs text-text-muted">
+              {limited ? 'Where to focus' : 'What counted'}
+            </span>
+          </div>
           <ul className="divide-y divide-border">
             {debrief.categories.map((category) => {
               const Icon = STATUS_ICON[category.status];
               return (
-                <li className="flex gap-3 p-4" key={category.key}>
+                <li className="flex gap-3 py-3" key={category.key}>
                   <Icon
                     aria-hidden="true"
                     className={`mt-0.5 h-5 w-5 shrink-0 ${
@@ -228,13 +230,18 @@ export function TicketDebrief({
               );
             })}
           </ul>
-        </Card>
+        </section>
       ) : null}
 
-      <Card>
-        <CardHeader meta="Your words" title="Your documentation" />
-        <div className="p-4">
-          <p className="whitespace-pre-wrap rounded-sm border border-border bg-surface p-3 text-sm text-text">
+      <section
+        aria-labelledby="debrief-note"
+        className="border-b border-border pb-5"
+      >
+        <h3 className="text-base font-semibold text-text" id="debrief-note">
+          Your documentation
+        </h3>
+        <div className="mt-3">
+          <p className="whitespace-pre-wrap border-l-2 border-border pl-3 text-sm text-text">
             {debrief.student_note || 'No closure note was recorded.'}
           </p>
           <ul className="mt-3 flex flex-wrap gap-3 text-xs text-text-muted">
@@ -265,44 +272,59 @@ export function TicketDebrief({
             These notes-quality hints are advisory and do not change your score.
           </p>
         </div>
-      </Card>
+      </section>
 
       {limited ? (
-        <Card>
-          <CardHeader
-            meta="Coaching"
-            title="Work it out on your next attempt"
-          />
-          <p className="p-4 text-sm text-text-muted">
+        <section
+          aria-labelledby="debrief-retry-guidance"
+          className="border-b border-border pb-5"
+        >
+          <h3
+            className="text-base font-semibold text-text"
+            id="debrief-retry-guidance"
+          >
+            Work it out on your next attempt
+          </h3>
+          <p className="mt-2 text-sm text-text-muted">
             You still have a graded attempt left, so the worked solution stays
             hidden. Use the areas above to decide what evidence to gather, what
             action the ticket really needs, and what to document. The full
             walkthrough is released once you pass or use your last attempt.
           </p>
-        </Card>
+        </section>
       ) : null}
 
       {debrief.stronger_path.length ? (
-        <Card>
-          <CardHeader
-            meta="For next time"
-            title="A stronger troubleshooting path"
-          />
-          <ol className="list-decimal space-y-1 p-4 pl-8 text-sm text-text">
+        <section
+          aria-labelledby="debrief-stronger-path"
+          className="border-b border-border pb-5"
+        >
+          <h3
+            className="text-base font-semibold text-text"
+            id="debrief-stronger-path"
+          >
+            A stronger troubleshooting path
+          </h3>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-text">
             {debrief.stronger_path.map((step, index) => (
               <li key={`${String(index)}-${step}`}>{step}</li>
             ))}
           </ol>
-        </Card>
+        </section>
       ) : null}
 
       {debrief.escalation_feedback ? (
-        <Card>
-          <CardHeader
-            meta="Judgement"
-            title="Would escalation have been right?"
-          />
-          <div className="p-4 text-sm text-text">
+        <section
+          aria-labelledby="debrief-escalation"
+          className="border-b border-border pb-5"
+        >
+          <h3
+            className="text-base font-semibold text-text"
+            id="debrief-escalation"
+          >
+            Would escalation have been right?
+          </h3>
+          <div className="mt-2 text-sm text-text">
             <p className="font-bold text-text">
               {debrief.escalation_feedback.appropriate ? 'Yes' : 'No'}
             </p>
@@ -310,7 +332,7 @@ export function TicketDebrief({
               {debrief.escalation_feedback.text}
             </p>
           </div>
-        </Card>
+        </section>
       ) : null}
 
       {retryError ? (

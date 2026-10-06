@@ -12,7 +12,10 @@ import {
 
 describe('ResolveDialog close feedback', () => {
   it('surfaces the exact trusted workflow rejection in the open dialog', () => {
-    const event = { success: false, rejectReason: 'Verify the fix before closing.' } as ActionEvent;
+    const event = {
+      success: false,
+      rejectReason: 'Verify the fix before closing.',
+    } as ActionEvent;
     expect(closeRejectionMessage(event)).toBe('Verify the fix before closing.');
   });
 });
@@ -62,7 +65,8 @@ describe('close review never previews a score', () => {
         review={{ kind: 'ready', message: 'Everything checks out.' }}
       />,
     );
-    expect(markup).toContain('Ready to resolve');
+    expect(markup).toContain('Requester confirmation selected');
+    expect(markup).not.toContain('Everything checks out.');
     expect(markup).toContain(
       'Nexus will check your investigation, diagnosis, action, verification, and documentation after you submit.',
     );
@@ -81,7 +85,7 @@ describe('close review never previews a score', () => {
         }}
       />,
     );
-    expect(markup).toContain('Unresolved close warning');
+    expect(markup).toContain('Requester outcome unconfirmed');
     expect(markup).not.toMatch(/\d+\s*(of|points)/);
     expect(markup).not.toContain('deducts');
   });

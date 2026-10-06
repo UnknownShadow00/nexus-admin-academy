@@ -22,7 +22,7 @@ import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
 import { WorkspaceTicketQueue } from './WorkspaceTicketQueue';
-import { CurrentStage, WorkflowRail } from './WorkflowRail';
+import { WORKFLOW_COPY, WorkflowRail } from './WorkflowRail';
 import { useNexusReturnTarget } from './useNexusReturnTarget';
 
 const ORIENTATION_KEY = 'sd:first-guided-orientation-seen';
@@ -57,10 +57,25 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedToolSlug = searchParams.get('tool');
-  const [activeToolSlug, setActiveToolSlug] = useState<string | null>(null);
+  const [activeTool, setActiveToolState] = useState<{
+    ticketId: string;
+    slug: string;
+  } | null>(null);
+  const activeToolSlug =
+    activeTool?.ticketId === ticketId ? activeTool.slug : null;
   const [phonePane, setPhonePane] = useState<PhonePane>('work');
   const workHeading = useRef<HTMLHeadingElement>(null);
   const [orientationSeen, setOrientationSeen] = useState<boolean | null>(null);
+  const previousTicketId = useRef(ticketId);
+
+  useEffect(() => {
+    if (previousTicketId.current === ticketId) return;
+    previousTicketId.current = ticketId;
+    // Next.js may reuse this component across ticket routes. A tool or mobile
+    // pane selected for the previous case must not become the new case's work.
+    setActiveToolState(null);
+    setPhonePane('work');
+  }, [ticketId]);
 
   useEffect(() => {
     try {
@@ -77,7 +92,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     // hint param, a ticket param — must NOT clear the active tool. Only ever
     // promote a valid slug; never reset to null from this effect.
     if (requestedToolSlug && getToolBySlug(requestedToolSlug)) {
-      setActiveToolSlug(requestedToolSlug);
+      setActiveToolState({ ticketId, slug: requestedToolSlug });
       setPhonePane('work');
 
       if (!searchParams.get('ticket')) {
@@ -103,7 +118,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
           params.set(key, value);
       });
 
-      setActiveToolSlug(slug);
+      setActiveToolState({ ticketId, slug });
       setPhonePane('work');
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
     },
@@ -191,6 +206,9 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   }
 
   const experienceMode = assignment?.experience_mode ?? 'guided';
+  const currentStage = workspaceView?.stages.find(
+    (stage) => stage.status === 'current',
+  );
   const authoritativeGrade = authoritativeGradeByTicket[ticketId];
   const ticketQueue = (
     <WorkspaceTicketQueue
@@ -273,7 +291,56 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
                 <h2 className="sr-only" ref={workHeading} tabIndex={-1}>
                   Ticket work area
                 </h2>
+                <section
+                  aria-label="Current ticket work"
+                  className="min-w-0 border-b border-border pb-4"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    Current ticket work
+                  </p>
+                  <h2 className="mt-2 text-base font-semibold leading-snug text-text">
+                    {currentStage
+                      ? WORKFLOW_COPY[currentStage.key].label
+                      : 'Ticket work'}
+                  </h2>
+                  {currentStage && experienceMode !== 'assessment' ? (
+                    <p className="mt-1 max-w-prose text-sm leading-relaxed text-text-muted">
+                      {WORKFLOW_COPY[currentStage.key].help}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 border-l-2 border-border pl-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                      Reported issue
+                    </h3>
+                    <p className="mt-1 max-w-prose break-words text-sm leading-relaxed text-text">
+                      {ticket.description.issue}
+                    </p>
+                  </div>
+                  {currentStage?.key === 'verify' ||
+                  currentStage?.key === 'document' ? (
+                    <button
+                      className="sd-focus-ring mt-3 min-h-11 rounded-sm border border-border px-3 py-2 text-sm font-semibold text-text sm:hidden"
+                      onClick={() =>
+                        setPhonePane(
+                          currentStage.key === 'verify' ? 'evidence' : 'notes',
+                        )
+                      }
+                      type="button"
+                    >
+                      {currentStage.key === 'verify'
+                        ? 'Review confirmed work'
+                        : 'Open support notes'}
+                    </button>
+                  ) : null}
+                  <details className="mt-3">
+                    <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-accent">
+                      Full report and prior checks
+                    </summary>
+                    <TicketIssueDetails description={ticket.description} />
+                  </details>
+                </section>
                 <WorkspaceToolLauncher
+                  key={ticket.id}
                   activeToolSlug={activeToolSlug}
                   experienceMode={experienceMode}
                   onSelectTool={setActiveTool}
@@ -281,12 +348,6 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
                   ticketId={ticket.id}
                   toolSlugs={ticket.suggestedTools}
                 />
-                <details className="rounded-sm bg-surface-raised px-3 py-2">
-                  <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
-                    Reported issue
-                  </summary>
-                  <TicketIssueDetails description={ticket.description} />
-                </details>
                 <ActiveToolPane
                   activeTicketId={ticket.id}
                   activeToolSlug={activeToolSlug}
@@ -295,7 +356,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
                     const params = new URLSearchParams(searchParams.toString());
                     params.delete('tool');
                     for (const key of TOOL_HINT_KEYS) params.delete(key);
-                    setActiveToolSlug(null);
+                    setActiveToolState(null);
                     setPhonePane('work');
                     router.replace(`${pathname}?${params.toString()}`, {
                       scroll: false,
@@ -310,20 +371,13 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
               aria-label="Ticket workspace rail"
               className="contents min-w-0 sm:block sm:space-y-4 sm:mt-4 lg:mt-0"
             >
-              <div className="hidden sm:block">
-                {workspaceView ? (
-                  <CurrentStage
-                    experienceMode={experienceMode}
-                    stages={workspaceView.stages}
-                  />
-                ) : null}
-              </div>
               {experienceMode !== 'assessment' ? (
                 <details className="order-first rounded-sm bg-surface-raised px-3 py-1 sm:order-none">
                   <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
                     Hints
                   </summary>
                   <HintPanel
+                    key={ticket.id}
                     experienceMode={experienceMode}
                     hints={ticket.hints}
                     onReveal={(step) => recordHintReveal(ticket.id, step)}
@@ -350,6 +404,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
                 value="notes"
               >
                 <ResolutionNotePanel
+                  key={ticket.id}
                   experienceMode={experienceMode}
                   notes={ticket.notes}
                   onSubmit={(body) => submitResolutionNote(ticket.id, body)}
