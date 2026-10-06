@@ -391,7 +391,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(await assignmentsResponse.json()).toEqual([]);
 
     await pageA.goto("/service-desk");
-    await expect(pageA.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
+    await expect(pageA.getByRole("heading", { name: "Ticket queue", exact: true })).toBeVisible();
     await expect(pageA.getByText("Complete Nexus Orientation to begin your first Service Desk shift.")).toBeVisible();
     await expect(pageA.getByRole("region", { name: "Assigned" })).toHaveCount(0);
     await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(0);
@@ -1101,7 +1101,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
 
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/service-desk");
-    await expect(page.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ticket queue", exact: true })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,

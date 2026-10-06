@@ -6,13 +6,13 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
 
 import type { NexusAssignment } from '../lib/nexus-service-desk-client';
+import { workspaceHref } from '../lib/workspace-navigation';
 import { TicketStatusBadge } from './TicketStatusBadge';
-import { useNexusReturnTarget } from './useNexusReturnTarget';
 
 type ExperienceMode = NexusAssignment['experience_mode'];
 
 const EXPERIENCE_MODE_LABELS: Record<ExperienceMode, string> = {
-  assessment: 'Assessment',
+  assessment: 'Independent assessment',
   guided: 'Guided Practice',
   practice: 'Practice',
 };
@@ -32,12 +32,13 @@ export function TicketContextBar({
   assignment,
   ticket,
   completed = false,
+  launchQuery = '',
 }: {
   assignment?: NexusAssignment;
   ticket: Ticket;
   completed?: boolean;
+  launchQuery?: string;
 }) {
-  const returnTarget = useNexusReturnTarget();
   const remaining = assignment
     ? attemptsRemaining(
         assignment.maximum_attempts,
@@ -49,33 +50,27 @@ export function TicketContextBar({
     <header className="min-w-0 border-b border-border pb-4">
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {returnTarget ? (
-            <a
-              className="sd-focus-ring inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-semibold text-text-muted hover:text-text"
-              href={returnTarget.href}
-            >
-              <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-              {returnTarget.label}
-            </a>
-          ) : (
-            <Link
-              className="sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-semibold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              href="/"
-            >
-              <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-              Back to queue
-            </Link>
-          )}
+          <Link
+            className="sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-semibold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus lg:hidden"
+            href={workspaceHref('/', launchQuery, ticket.id)}
+          >
+            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
+            Back to tickets
+          </Link>
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="font-mono text-sm font-semibold text-text-muted">
             {ticket.id}
           </span>
-          <PriorityBadge pill priority={ticket.priority} />
-          <TicketStatusBadge status={ticket.status} />
+          <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+            Priority <PriorityBadge pill priority={ticket.priority} />
+          </span>
+          <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+            Ticket status <TicketStatusBadge status={ticket.status} />
+          </span>
           {assignment ? (
-            <span className="text-xs text-text-muted">
+            <span className="rounded-sm border border-border bg-surface-raised px-2 py-1 text-xs font-semibold text-text">
               {experienceModeLabel(assignment.experience_mode)}
             </span>
           ) : null}
@@ -99,8 +94,8 @@ export function TicketContextBar({
           </p>
         ) : assignment?.experience_mode === 'practice' ? (
           <p className="mt-2 max-w-3xl text-xs text-text-muted">
-            Independent replay. Practice does not replace required assessment
-            mastery or award XP.
+            Independent replay. Practice does not replace a required assessment
+            pass.
           </p>
         ) : assignment?.guided_completed ? (
           <p className="mt-2 max-w-3xl text-xs text-text-muted">

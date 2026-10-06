@@ -7,7 +7,7 @@ const moduleKey = "module.aplus.core1.printers_mfds";
 const returnTo = `/learning-v2/modules/${moduleKey}`;
 const screenshots = process.env.NEXUS_P1_SCREENSHOTS;
 
-async function launch(page) {
+async function login(page) {
   const base = process.env.NEXUS_E2E_BASE_URL;
   if (!base || !["localhost", "127.0.0.1"].includes(new URL(base).hostname)) {
     throw new Error("A disposable loopback stack is required");
@@ -21,6 +21,10 @@ async function launch(page) {
     .fill(process.env.NEXUS_E2E_STUDENT_A_PASSWORD);
   await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
+}
+
+async function launch(page) {
+  await login(page);
   await page.goto(returnTo);
   await page.getByRole("link", { name: "Troubleshoot a ticket" }).click();
   await expect
@@ -72,6 +76,32 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
   await page.setViewportSize({ width: 1440, height: 900 });
   await launch(page);
   await capture(page, "desktop-initial");
+  const queue = page.getByRole("navigation", { name: "Ticket queue" });
+  await expect(queue).toBeVisible();
+  await expect(queue.locator('[aria-current="page"]')).toContainText("INC2504");
+  await expect(queue.locator('[aria-current="page"]')).toHaveCount(1);
+  const selectedHref = await queue.locator('[aria-current="page"]').getAttribute('href');
+  const selectedUrl = new URL(selectedHref, page.url());
+  expect(selectedUrl.searchParams.get('v2ModuleKey')).toBe(moduleKey);
+  expect(selectedUrl.searchParams.get('v2AssessmentKey')).toBe('assess.aplus-core1-printers-mfds.service_desk');
+  expect(selectedUrl.searchParams.get('v2LaunchTicket')).toBe('INC2504');
+  await queue.locator('[aria-current="page"]').click();
+  await expect(page).toHaveURL(/[?&]v2LaunchTicket=INC2504(?:&|$)/);
+  await queue.getByRole('link', { name: /INC2403:/ }).click();
+  await expect(queue.locator('[aria-current="page"]')).toContainText('INC2403');
+  await expect(page).toHaveURL(/[?&]v2LaunchTicket=INC2504(?:&|$)/);
+  await queue.getByRole('link', { name: /INC2504:/ }).click();
+  await expect(queue.locator('[aria-current="page"]')).toContainText('INC2504');
+  await expect(page).toHaveURL(/[?&]v2ModuleKey=module.aplus.core1.printers_mfds(?:&|$)/);
+  const attemptStarts = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/service-desk\/assignments\/[^/]+\/attempts/.test(request.url())) {
+      attemptStarts.push(request.url());
+    }
+  });
+  await expect(page.getByRole("heading", { name: "Ticket workflow" })).toBeAttached();
+  await expect(page.locator('[data-group-2-slot="workflow-rail"] ol').first().locator('li')).toHaveCount(6);
+  await expect(page.getByText("Guided Practice", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "Workspace tools" }),
   ).toBeHidden();
@@ -94,6 +124,8 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
   ).toHaveCount(1);
   await capture(page, "desktop-tool");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect.poll(() => attemptStarts.length).toBeGreaterThan(0);
+  expect(attemptStarts.some((url) => url.includes('v2_module_key=module.aplus.core1.printers_mfds'))).toBe(true);
   await expect
     .poll(
       async () =>
@@ -179,6 +211,13 @@ test("P1 mobile Work Evidence Notes retain drafts and fit 390px", async ({
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await launch(page);
+  await expect(page.getByRole("link", { name: "Back to tickets" })).toBeVisible();
+  const stageOverview = page.locator('[data-group-2-slot="workflow-rail"] details');
+  await expect(stageOverview.locator('summary')).toContainText(/Step [1-6] of 6:/);
+  await stageOverview.locator('summary').click();
+  await expect(stageOverview.locator('li')).toHaveCount(6);
+  await expect(stageOverview.locator('[aria-current="step"]')).toHaveCount(1);
+  await expect(stageOverview).toContainText("Fix / Escalate");
   const noOverflow = async () =>
     expect(
       await page.evaluate(
@@ -247,4 +286,33 @@ test("P1 mobile Work Evidence Notes retain drafts and fit 390px", async ({
     "Mobile draft retained while changing workspace sections.",
   );
   await noOverflow();
+});
+
+test("P1 independent ticket shares the queue and stage shell without guided help", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await login(page);
+  await page.goto('/service-desk/tickets/INC2509');
+  await expect(page.getByRole('heading', { name: 'The disk warning is back again' })).toBeVisible();
+  await expect(page.getByText('Independent assessment', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ticket status')).toBeVisible();
+  await expect(page.getByText('Ticket status').locator('.sd-badge')).toBeVisible();
+  const stages = page.locator('[data-group-2-slot="workflow-rail"] details');
+  await stages.locator('summary').click();
+  await expect(stages.locator('li')).toHaveCount(6);
+  await expect(page.getByText('Hints', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Back to tickets' })).toBeVisible();
+  await expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("P1 desktop queue switches tickets and identifies the selected case", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await login(page);
+  await page.goto('/service-desk/tickets/INC2509');
+  const queue = page.getByRole('navigation', { name: 'Ticket queue' });
+  await expect(queue.locator('[aria-current="page"]')).toContainText('INC2509');
+  await queue.getByRole('link', { name: /INC2403:/ }).click();
+  await expect(page).toHaveURL(/\/service-desk\/tickets\/INC2403$/);
+  await expect(queue.locator('[aria-current="page"]')).toContainText('INC2403');
+  await expect(queue.locator('[aria-current="page"]')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: /PDF editor closes/ })).toBeVisible();
 });

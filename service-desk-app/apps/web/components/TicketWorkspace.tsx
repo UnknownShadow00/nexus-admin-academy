@@ -21,6 +21,7 @@ import { TicketDebrief } from './TicketDebrief';
 import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
+import { WorkspaceTicketQueue } from './WorkspaceTicketQueue';
 import { CurrentStage, WorkflowRail } from './WorkflowRail';
 import { useNexusReturnTarget } from './useNexusReturnTarget';
 
@@ -45,6 +46,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     recordHintReveal,
     startNextAttempt,
     submitResolutionNote,
+    tickets,
     workspaceViewByTicket,
   } = useTicketSession();
   const isHydrated = useSessionHydrated();
@@ -131,7 +133,14 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
         >
           Back to queue
         </Link>
-        {nexusReturn ? <a className="ml-3 inline-flex min-h-10 items-center text-sm font-semibold underline" href={nexusReturn.href}>{nexusReturn.label}</a> : null}
+        {nexusReturn ? (
+          <a
+            className="ml-3 inline-flex min-h-10 items-center text-sm font-semibold underline"
+            href={nexusReturn.href}
+          >
+            {nexusReturn.label}
+          </a>
+        ) : null}
       </div>
     );
   }
@@ -183,167 +192,190 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
 
   const experienceMode = assignment?.experience_mode ?? 'guided';
   const authoritativeGrade = authoritativeGradeByTicket[ticketId];
+  const ticketQueue = (
+    <WorkspaceTicketQueue
+      assignmentByTicket={assignmentByTicket}
+      launchQuery={searchParams.toString()}
+      selectedTicketId={ticketId}
+      tickets={tickets}
+    />
+  );
 
   if (authoritativeGrade) {
     return (
-      <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">
-        <TicketContextBar assignment={assignment} completed ticket={ticket} />
-        <TicketDebrief
-          assignment={assignment}
-          grade={authoritativeGrade}
-          onRetry={startNextAttempt}
-          ticket={ticket}
-        />
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]">
+        {ticketQueue}
+        <div className="min-w-0 space-y-4 sm:space-y-5">
+          <TicketContextBar
+            assignment={assignment}
+            completed
+            launchQuery={searchParams.toString()}
+            ticket={ticket}
+          />
+          <TicketDebrief
+            assignment={assignment}
+            grade={authoritativeGrade}
+            onRetry={startNextAttempt}
+            ticket={ticket}
+          />
+        </div>
       </div>
     );
   }
 
   return (
     <div
-      className="mx-auto w-full min-w-0 max-w-[1540px] space-y-4"
+      className="grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]"
       data-testid="ticket-workspace"
     >
-      <TicketContextBar assignment={assignment} ticket={ticket} />
-      {awaitingGradeByTicket[ticketId] ? (
-        <p
-          className="rounded-md border border-border p-4 text-lg font-bold"
-          role="status"
-        >
-          Assessment result: AWAITING REVIEW — module credit pending.
-        </p>
-      ) : null}
-      {workspaceView ? (
-        <WorkflowRail
-          experienceMode={experienceMode}
-          stages={workspaceView.stages}
+      {ticketQueue}
+      <div className="min-w-0 space-y-4">
+        <TicketContextBar
+          assignment={assignment}
+          launchQuery={searchParams.toString()}
+          ticket={ticket}
         />
-      ) : null}
-      <Tabs
-        onValueChange={(value) => setPhonePane(value as PhonePane)}
-        value={phonePane}
-      >
-        <TabsList
-          aria-label="Ticket workspace panes"
-          className="grid grid-cols-3 sm:hidden"
+        {awaitingGradeByTicket[ticketId] ? (
+          <p
+            className="rounded-md border border-border p-4 text-lg font-bold"
+            role="status"
+          >
+            Assessment result: AWAITING REVIEW — module credit pending.
+          </p>
+        ) : null}
+        {workspaceView ? (
+          <WorkflowRail
+            experienceMode={experienceMode}
+            stages={workspaceView.stages}
+          />
+        ) : null}
+        <Tabs
+          onValueChange={(value) => setPhonePane(value as PhonePane)}
+          value={phonePane}
         >
-          <TabsTrigger value="work">Work</TabsTrigger>
-          <TabsTrigger value="evidence">
-            Evidence ({workspaceView?.evidence.length ?? 0})
-          </TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
-        </TabsList>
-        <div className="grid min-w-0 gap-4 sm:block lg:grid lg:gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
-          <TabsContent
-            className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
-            forceMount
-            value="work"
+          <TabsList
+            aria-label="Ticket workspace panes"
+            className="grid grid-cols-3 sm:hidden"
           >
-            <div className="min-w-0 space-y-4">
-              <h2 className="sr-only" ref={workHeading} tabIndex={-1}>
-                Ticket work area
-              </h2>
-              <WorkspaceToolLauncher
-                activeToolSlug={activeToolSlug}
-                experienceMode={experienceMode}
-                onSelectTool={setActiveTool}
-                ticketCategory={ticket.category}
-                ticketId={ticket.id}
-                toolSlugs={ticket.suggestedTools}
-              />
-              <details className="rounded-sm bg-surface-raised px-3 py-2">
-                <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
-                  Reported issue
-                </summary>
-                <TicketIssueDetails description={ticket.description} />
-              </details>
-              <ActiveToolPane
-                activeTicketId={ticket.id}
-                activeToolSlug={activeToolSlug}
-                onSelectTool={setActiveTool}
-                onBack={() => {
-                  const params = new URLSearchParams(searchParams.toString());
-                  params.delete('tool');
-                  for (const key of TOOL_HINT_KEYS) params.delete(key);
-                  setActiveToolSlug(null);
-                  setPhonePane('work');
-                  router.replace(`${pathname}?${params.toString()}`, {
-                    scroll: false,
-                  });
-                  workHeading.current?.focus();
-                }}
-              />
-              <TicketActionBar ticket={ticket} />
-            </div>
-          </TabsContent>
-          <aside
-            aria-label="Ticket workspace rail"
-            className="contents min-w-0 sm:block sm:space-y-4 sm:mt-4 lg:mt-0"
-          >
-            <div className="hidden sm:block">
-              {workspaceView ? (
-                <CurrentStage
+            <TabsTrigger value="work">Work</TabsTrigger>
+            <TabsTrigger value="evidence">
+              Evidence ({workspaceView?.evidence.length ?? 0})
+            </TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
+          </TabsList>
+          <div className="grid min-w-0 gap-4 sm:block lg:grid lg:gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <TabsContent
+              className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
+              forceMount
+              value="work"
+            >
+              <div className="min-w-0 space-y-4">
+                <h2 className="sr-only" ref={workHeading} tabIndex={-1}>
+                  Ticket work area
+                </h2>
+                <WorkspaceToolLauncher
+                  activeToolSlug={activeToolSlug}
                   experienceMode={experienceMode}
-                  stages={workspaceView.stages}
+                  onSelectTool={setActiveTool}
+                  ticketCategory={ticket.category}
+                  ticketId={ticket.id}
+                  toolSlugs={ticket.suggestedTools}
                 />
+                <details className="rounded-sm bg-surface-raised px-3 py-2">
+                  <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
+                    Reported issue
+                  </summary>
+                  <TicketIssueDetails description={ticket.description} />
+                </details>
+                <ActiveToolPane
+                  activeTicketId={ticket.id}
+                  activeToolSlug={activeToolSlug}
+                  onSelectTool={setActiveTool}
+                  onBack={() => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete('tool');
+                    for (const key of TOOL_HINT_KEYS) params.delete(key);
+                    setActiveToolSlug(null);
+                    setPhonePane('work');
+                    router.replace(`${pathname}?${params.toString()}`, {
+                      scroll: false,
+                    });
+                    workHeading.current?.focus();
+                  }}
+                />
+                <TicketActionBar ticket={ticket} />
+              </div>
+            </TabsContent>
+            <aside
+              aria-label="Ticket workspace rail"
+              className="contents min-w-0 sm:block sm:space-y-4 sm:mt-4 lg:mt-0"
+            >
+              <div className="hidden sm:block">
+                {workspaceView ? (
+                  <CurrentStage
+                    experienceMode={experienceMode}
+                    stages={workspaceView.stages}
+                  />
+                ) : null}
+              </div>
+              {experienceMode !== 'assessment' ? (
+                <details className="order-first rounded-sm bg-surface-raised px-3 py-1 sm:order-none">
+                  <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
+                    Hints
+                  </summary>
+                  <HintPanel
+                    experienceMode={experienceMode}
+                    hints={ticket.hints}
+                    onReveal={(step) => recordHintReveal(ticket.id, step)}
+                    revealedCount={ticket.hintsRevealedCount}
+                  />
+                </details>
               ) : null}
-            </div>
-            {experienceMode !== 'assessment' ? (
-              <details className="order-first rounded-sm bg-surface-raised px-3 py-1 sm:order-none">
-                <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
-                  Hints
-                </summary>
-                <HintPanel
+              <TabsContent
+                className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
+                forceMount
+                value="evidence"
+              >
+                {workspaceView ? (
+                  <EvidencePanel workspaceView={workspaceView} />
+                ) : (
+                  <p className="text-sm text-text-muted">
+                    No evidence confirmed yet.
+                  </p>
+                )}
+              </TabsContent>
+              <TabsContent
+                className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
+                forceMount
+                value="notes"
+              >
+                <ResolutionNotePanel
                   experienceMode={experienceMode}
-                  hints={ticket.hints}
-                  onReveal={(step) => recordHintReveal(ticket.id, step)}
-                  revealedCount={ticket.hintsRevealedCount}
+                  notes={ticket.notes}
+                  onSubmit={(body) => submitResolutionNote(ticket.id, body)}
                 />
-              </details>
-            ) : null}
-            <TabsContent
-              className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
-              forceMount
-              value="evidence"
-            >
-              {workspaceView ? (
-                <EvidencePanel workspaceView={workspaceView} />
-              ) : (
-                <p className="text-sm text-text-muted">
-                  No evidence confirmed yet.
-                </p>
-              )}
-            </TabsContent>
-            <TabsContent
-              className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
-              forceMount
-              value="notes"
-            >
-              <ResolutionNotePanel
-                experienceMode={experienceMode}
-                notes={ticket.notes}
-                onSubmit={(body) => submitResolutionNote(ticket.id, body)}
-              />
-            </TabsContent>
-          </aside>
-        </div>
-      </Tabs>
-      <OutcomeBar ticket={ticket} />
-      <details className="border-t border-border pt-2">
-        <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
-          Case and device details
-        </summary>
-        <div className="grid gap-4 md:grid-cols-2">
-          <RequesterCard requester={ticket.requester} />
-          <RelatedDevicePanel device={ticket.device} />
-        </div>
-        <p className="mt-3 text-xs text-text-muted">{ticket.sla.target}</p>
-      </details>
-      <details className="border-t border-border pt-2">
-        <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
-          Activity timeline ({ticket.activity.length})
-        </summary>
-        <ActivityTimeline events={ticket.activity} />
-      </details>
+              </TabsContent>
+            </aside>
+          </div>
+        </Tabs>
+        <OutcomeBar ticket={ticket} />
+        <details className="border-t border-border pt-2">
+          <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
+            Case and device details
+          </summary>
+          <div className="grid gap-4 md:grid-cols-2">
+            <RequesterCard requester={ticket.requester} />
+            <RelatedDevicePanel device={ticket.device} />
+          </div>
+          <p className="mt-3 text-xs text-text-muted">{ticket.sla.target}</p>
+        </details>
+        <details className="border-t border-border pt-2">
+          <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
+            Activity timeline ({ticket.activity.length})
+          </summary>
+          <ActivityTimeline events={ticket.activity} />
+        </details>
+      </div>
     </div>
   );
 }

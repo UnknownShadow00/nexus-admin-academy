@@ -23,6 +23,16 @@ describe('Nexus durable sync outbox', () => {
     expect(readNexusOutbox(local, 'outbox').items.map((entry) => entry.event.idempotency_key)).toEqual(['event-1', 'event-2']);
   });
 
+  it('persists an action’s V2 launch context for a later retry', () => {
+    const local = storage();
+    const queued = {
+      ...item,
+      v2LaunchContext: { moduleKey: 'module.ip', assessmentKey: 'assess.ip' },
+    };
+    writeNexusOutbox(local, 'outbox', { items: [queued] });
+    expect(readNexusOutbox(local, 'outbox').items[0]).toEqual(queued);
+  });
+
   it('retains snapshot-only writes without treating them as action evidence', () => {
     const local = storage();
     writeNexusOutbox(local, 'outbox', {

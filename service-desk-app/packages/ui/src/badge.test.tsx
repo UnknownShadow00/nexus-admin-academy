@@ -26,7 +26,7 @@ describe('PriorityBadge', () => {
     [Priority.Critical, 'text-danger'],
     [Priority.High, 'text-danger/85'],
     [Priority.Medium, 'text-warning'],
-    [Priority.Low, 'text-warning/85'],
+    [Priority.Low, 'text-text-muted'],
   ])('applies the %s priority color', (priority, colorClass) => {
     render(<PriorityBadge priority={priority} />);
 

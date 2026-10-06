@@ -3124,3 +3124,33 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: tasks/loop-log.md; outside git: /tmp/nexus-ui-redesign-regression-20261005.md, /tmp/nexus-ui-vocabulary-contract.md, /tmp/nexus-service-desk-pr9-file-map.md, /tmp/nexus-service-desk-data-contract.md, /tmp/nexus-service-desk-pr9-preflight.md, /tmp/nexus-service-desk-pr9-prototype-20261005-043900/, /tmp/nexus-ui-post-redesign-cleanup-candidates.md
 - Result: pass for read-only follow-on deliverables; PR #58 remains open and unmerged with CI/review in progress; no Service Desk product changes or deployment.
 - Next: Wait for all required PR #58 CI and automated review, fix any in-scope findings, then report final status without merging.
+
+## [2026-10-05 20:11 UTC] Task Completed
+- Task: Safely merged PR #58 and implemented Service Desk PR 9A workspace, compact queue, selected-ticket context, six-stage navigation, responsive layout, mode labels, and focused regression coverage.
+- Files changed: frontend/tests/e2e/p0-service-desk-beginner.spec.js, frontend/tests/e2e/p1-service-desk-workspace.spec.js, service-desk-app/apps/web/components/DashboardContent.tsx, Header.tsx, MainContainer.tsx, TicketContextBar.tsx, TicketContextBar.test.ts, TicketQueue.tsx, TicketRow.tsx, TicketRow.test.tsx, TicketStatusBadge.tsx, TicketWorkspace.tsx, WorkflowRail.tsx, WorkflowRail.test.tsx, WorkspaceTicketQueue.tsx, WorkspaceTicketQueue.test.tsx, service-desk-app/packages/ui/src/badge.tsx, badge.test.tsx, tasks/loop-log.md.
+- Result: PASS local gates — Service Desk lint, typecheck, 523 tests, build, 27 standalone Playwright tests, four integrated P1 browser checks, guided server PASS, independent server PASS, INC2509 blocked validation, frontend 222 tests, high-severity audits, protected content SHA, single migration head, and diff check. Responsive visual review is outside git.
+- Next: Push and open PR 9A, wait for required CI and review, fix in-scope findings, keep PR 9A unmerged, then complete read-only PR 9B and global zoom preflight.
+
+## [2026-10-05 20:29 UTC] Task Completed
+- Task: Fixed PR #59 automated review finding by preserving V2 launch context through Service Desk ticket and queue navigation while restricting attempt credit context to the original ticket.
+- Files changed: frontend/tests/e2e/p1-service-desk-workspace.spec.js, service-desk-app/apps/web/components/Header.tsx, TicketContextBar.tsx, TicketQueue.tsx, TicketQueueSection.tsx, TicketRow.tsx, TicketWorkspace.tsx, WorkspaceTicketQueue.tsx, WorkspaceTicketQueue.test.tsx, service-desk-app/apps/web/lib/nexus-service-desk-client.ts, nexus-service-desk-client.test.ts, workspace-navigation.ts, workspace-navigation.test.ts, tasks/loop-log.md.
+- Result: PASS focused and full Service Desk tests (527 total), lint, typecheck, build, fresh integrated queue-switch browser test proving V2 attempt context, and guided server PASS; no backend or grading edits.
+- Next: Push follow-up commit, await required CI and review, resolve the addressed thread, keep PR #59 open and unmerged.
+
+## [2026-10-05 21:34 UTC] Task Completed
+- Task: Addressed PR #59 Playwright findings by restoring the generic Nexus return link on direct Service Desk queue/tool entry and updating the queue-heading assertion to the PR 9A label.
+- Files changed: service-desk-app/apps/web/components/Header.tsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS focused fresh-stack desktop queue/tool/mobile return browser check, Service Desk lint, 527 unit tests, typecheck, build, and syntax check. Full local my-training rerun had unrelated Labs/admin error-boundary failures and a Week 0 timeout in its local disposable stack; CI rerun remains required.
+- Next: Push fix, rerun all required GitHub checks, inspect review threads, leave PR #59 open and unmerged.
+
+## [2026-10-05 21:48 UTC] Task Completed
+- Task: Updated remaining Service Desk browser assertions for the PR 9A queue heading and current global navigation label.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js, frontend/tests/e2e/sentry-csp.spec.js, tasks/loop-log.md.
+- Result: PASS — two affected integration cases and the authenticated Service Desk navigation smoke case on a fresh disposable stack, JavaScript syntax checks, and git diff --check; no product or backend changes.
+- Next: Push the test fix, wait for all GitHub CI and review, and keep PR #59 open and unmerged.
+
+## [2026-10-05 21:55 UTC] Task Completed
+- Task: Fixed the PR #59 offline retry review finding by persisting each queued action's original V2 curriculum launch context and using it when starting the saved attempt after a ticket switch.
+- Files changed: service-desk-app/apps/web/components/TicketSessionProvider.tsx, service-desk-app/apps/web/lib/nexus-service-desk-client.ts, service-desk-app/apps/web/lib/nexus-service-desk-client.test.ts, service-desk-app/apps/web/lib/nexus-sync-outbox.ts, service-desk-app/apps/web/lib/nexus-sync-outbox.test.ts, service-desk-app/apps/web/lib/workspace-navigation.ts, service-desk-app/apps/web/lib/workspace-navigation.test.ts, tasks/loop-log.md.
+- Result: PASS — Service Desk lint, typecheck, 530 tests, build, high-severity audit, four P1 browser tests, guided server PASS, independent server PASS, and a fresh browser check that refused the first attempt, switched tickets, and retried the queued action with its original V2 keys. Protected Stage 4 SHA and sole Alembic head are unchanged.
+- Next: Push the fix, await all GitHub CI and automated review, resolve addressed threads, and keep PR #59 open and unmerged.

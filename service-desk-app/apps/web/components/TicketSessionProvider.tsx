@@ -116,6 +116,7 @@ import {
   type NexusOutbox,
   type NexusSyncStatus,
 } from '../lib/nexus-sync-outbox';
+import { captureV2LaunchContextForTicket } from '../lib/workspace-navigation';
 
 interface TicketSessionContextValue {
   addNote: (ticketId: string, body: string) => void;
@@ -1809,7 +1810,7 @@ export function TicketSessionProvider({
         if (!item) break;
         let attemptId = item.attemptId;
         if (!attemptId) {
-          const started = await startOrResumeAttempt(item.assignmentId);
+          const started = await startOrResumeAttempt(item.assignmentId, item.v2LaunchContext ?? null);
           if (!started)
             throw new Error('Nexus could not start the saved attempt.');
           attemptId = started.id;
@@ -1955,6 +1956,7 @@ export function TicketSessionProvider({
         isHint:
           syncDetails.tool === 'ticket' && action.type === 'ticket.reveal_hint',
         ticketId: normalizedTicketId,
+        v2LaunchContext: captureV2LaunchContextForTicket(normalizedTicketId),
       });
       nexusSyncFailedRef.current = false;
       persistOutbox();
