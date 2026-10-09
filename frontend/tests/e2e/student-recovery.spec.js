@@ -31,7 +31,7 @@ test("beginner recovers notes, quiz position, and service failures on mobile", a
     await page.getByLabel("New password", { exact: true }).fill(permanent);
     await page.getByLabel("Confirm new password", { exact: true }).fill(permanent);
     await page.getByRole("button", { name: "Change password", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
     await page.goto("/lessons/1");
     await expect(page.getByRole("heading", { name: "Before your first quiz: what goes in a ticket?" })).toBeVisible();
     const note = page.getByRole("textbox", { name: "Your study notes" });

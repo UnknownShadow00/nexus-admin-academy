@@ -1,5 +1,5 @@
 import { BarChart3, BookOpen, ChevronDown, Home, LogOut, Menu, Moon, Search, Sun, Ticket, Wrench, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
 import ReportIssueButton from "./components/ReportIssueButton";
@@ -12,6 +12,7 @@ import AdminLoginPage from "./pages/AdminLoginPage";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import StudentHome from "./pages/StudentHome";
+import LearnerShell from "./components/academy/LearnerShell";
 import { authLogout, getAdminV2PracticalReviews, globalSearch } from "./services/api";
 import { V2_CURRICULUM_ENABLED } from "./config/features";
 import { useV2Access } from "./hooks/useV2Access";
@@ -371,9 +372,12 @@ export default function App() {
     navigate("/login");
   }
 
+  const StudentFrame = showChrome && !isAdminRoute ? LearnerShell : Fragment;
+  const frameProps = showChrome && !isAdminRoute ? { isDark, setIsDark, student: currentStudent, items: navItems, onLogout: handleLogout, isActive: isNavItemActive } : {};
+
   return (
     <div className="app-root">
-      {showChrome ? <>
+      {showChrome && isAdminRoute ? <>
         <header ref={headerRef} className={`app-header${isAdminRoute ? " app-header-admin" : ""}`}>
           <div className="app-header-inner">
             <Link ref={brandLink} className="app-brand" to={isAdminRoute ? "/admin" : "/"} aria-label="Nexus Admin Academy home">
@@ -423,10 +427,11 @@ export default function App() {
         </header>
         {!isAdminRoute ? <BottomNav items={navItems} menuOpen={mobileOpen} /> : null}
       </> : null}
-      <div className={showChrome && !isAdminRoute ? "app-main-with-bottom-nav" : ""} aria-hidden={mobileOpen || undefined} inert={mobileOpen ? "" : undefined}>
+      <StudentFrame key={showChrome && !isAdminRoute ? currentStudent?.id : undefined} {...frameProps}>
+      <div aria-hidden={mobileOpen || undefined} inert={mobileOpen ? "" : undefined}>
       <Suspense fallback={<div className="mx-auto max-w-3xl p-6" role="status">Loading page...</div>}>
       <MonitoredRoutes>
-        <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
+        <Route path="/" element={<RequireAuth><StudentHome isDark={isDark} /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/change-password" element={<RequireAuth passwordChangeOnly><ChangePasswordPage /></RequireAuth>} />
         <Route path="/lessons/:lessonId" element={<RequireAuth><LessonPage /></RequireAuth>} />
@@ -484,6 +489,7 @@ export default function App() {
       </MonitoredRoutes>
       </Suspense>
       </div>
+      </StudentFrame>
     </div>
   );
 }

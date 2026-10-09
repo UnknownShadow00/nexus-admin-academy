@@ -1,14 +1,15 @@
-import { ArrowRight, Clock3, MessageSquareText } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, MessageSquareText } from "lucide-react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import PageContainer from "../components/ui/PageContainer";
-import PageHeader from "../components/ui/PageHeader";
+import TodayDashboard from "../components/academy/TodayDashboard";
+import { LearnerStatsContext } from "../components/academy/LearnerShell";
 import V2Status from "../components/v2/V2Status";
 import { mentorFollowUpStatus, stageProgressStatus } from "../components/ui/statusFoundation";
 import { TrainingDestination } from "../components/TrainingDestination";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { useV2Access } from "../hooks/useV2Access";
-import { checkInStudent, getStudentStats, getTrainingDashboard, getV2Learning } from "../services/api";
+import { checkInStudent, getStudentStats, getTrainingDashboard, getV2Learning, getV2Module } from "../services/api";
 
 const LEARNING_KINDS = new Set(["lesson", "resource", "interaction", "quick_check", "module_quiz", "practical", "service_desk", "explain", "evidence", "next_stage"]);
 const ACTIVITY_NAMES = {
@@ -106,49 +107,8 @@ function MentorFollowUp({ items, learningAvailable = false }) {
   </aside>;
 }
 
-function TodayContent({ model, training, v2Learning }) {
-  const { target, followUps, correction, mode } = model;
-  const current = v2Learning?.current;
-  const secondaryFollowUps = mode === "correction" ? followUps.filter((item) => item.key !== correction?.key) : followUps;
-  const primaryTitle = mode === "learning" ? target.title
-    : mode === "correction" ? correction?.title || target.title
-      : mode === "waiting" ? "Learning is up to date"
-        : mode === "mastered" ? current?.module?.title || target.title
-          : mode === "legacy_complete" ? target.title : "Nothing else to do here yet";
-  const description = mode === "learning" ? (target.activityType || "Course work") + " is ready when you are."
-    : mode === "correction" ? "Your mentor left feedback on this practical. This is a normal part of the process."
-      : mode === "waiting" ? "You've finished the learning currently available here. Your practical is with your mentor."
-        : mode === "mastered" ? "This stage is mastered. You can review your work in My Course."
-          : mode === "legacy_complete" ? target.detail
-          : current ? "Check My Course for the learning currently available to you." : "Open your learning path to see what is available.";
-  const primaryLink = mode === "learning" ? { label: target.label, to: target.to }
-    : mode === "correction" ? { label: "Update your practical", to: correction?.route }
-      : mode === "mastered" ? { label: "View My Course", to: "/learning-v2" }
-        : mode === "legacy_complete" ? { label: target.label, to: target.to } : null;
-  return <>
-    <div className={"today-layout" + (mode === "correction" && !secondaryFollowUps.length ? " today-layout-solo" : "")}>
-      <section aria-labelledby="today-primary-heading" className={"today-primary" + (mode === "correction" ? " today-primary-correction" : "")}>
-        <p className="type-label">{mode === "learning" ? "Up next" : mode === "correction" ? "Changes requested" : mode === "mastered" ? "Stage mastered" : mode === "legacy_complete" ? "Training complete" : "Current learning"}</p>
-        <h2 id="today-primary-heading" className="today-primary-title">{primaryTitle}</h2>
-        {current ? <p className="today-context">{current.certification?.name} <span aria-hidden="true">·</span> {mode === "correction" ? correction?.stage : current.module?.title}</p> : target.detail ? <p className="today-context">{target.detail}</p> : null}
-        {mode === "learning" && target.v2 ? <div className="mt-4"><V2Status status={target.status} /></div> : mode === "mastered" && current ? <div className="mt-4"><V2Status status="mastered" /></div> : mode === "correction" ? <div className="mt-4"><V2Status status="needs_correction" /></div> : null}
-        <p className="type-secondary mt-5 max-w-2xl">{description}</p>
-        {mode === "correction" && correction?.feedback ? <p className="today-feedback mt-4 whitespace-pre-wrap"><strong>Mentor feedback:</strong> {correction.feedback}</p> : null}
-        {primaryLink?.to ? <TrainingDestination activity={target.v2 ? null : training?.next_activity} to={primaryLink.to} className={(mode === "learning" || mode === "correction" ? "btn-primary" : "btn-secondary") + " today-primary-action mt-6"}>{primaryLink.label}<ArrowRight size={17} aria-hidden="true" /></TrainingDestination>
-          : mode === "waiting" ? <Link className="btn-secondary mt-6" to="/learning-v2">View My Course</Link>
-            : mode === "up_to_date" ? <Link className="btn-secondary mt-6" to={current ? "/learning-v2" : "/learning-path"}>View course</Link> : null}
-        {mode === "learning" && target.estimatedMinutes ? <p className="type-meta mt-3 flex items-center gap-1.5"><Clock3 size={14} aria-hidden="true" />About {target.estimatedMinutes} min</p> : null}
-      </section>
-      {mode !== "correction" || secondaryFollowUps.length ? <MentorFollowUp items={secondaryFollowUps} learningAvailable={mode === "learning"} /> : null}
-    </div>
-    {current ? <footer className="today-quiet-links">
-      <p className="today-bottom-line">Your full stage record is in <Link to="/learning-v2">My Course</Link>.</p>
-      <p className="today-bottom-line">Want more practice? <Link to="/learning-path">Open Extra Practice</Link>.</p>
-    </footer> : null}
-  </>;
-}
-
-export default function StudentHome() {
+export default function StudentHome({ isDark = false }) {
+  const publishStats = useContext(LearnerStatsContext);
   const studentId = getCurrentStudent()?.id;
   const [stats, setStats] = useState(null);
   const [training, setTraining] = useState(null);
@@ -156,11 +116,16 @@ export default function StudentHome() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
+  const [detail, setDetail] = useState(null);
+  const [detailState, setDetailState] = useState("idle");
+  const [detailRetry, setDetailRetry] = useState(0);
+  useEffect(() => { publishStats(stats); }, [stats, publishStats]);
   const { studentEnabled: v2Enabled, loading: v2AccessLoading } = useV2Access(Boolean(studentId));
 
   useEffect(() => {
     if (!studentId) { setStats(null); setLoading(false); return; }
     if (v2AccessLoading) return;
+    let active = true;
     const run = async () => {
       setLoading(true);
       setLoadError("");
@@ -171,22 +136,34 @@ export default function StudentHome() {
           getTrainingDashboard({ suppressToast: true }),
           v2Enabled ? getV2Learning({ suppressToast: true }) : Promise.resolve(null),
         ]);
+        if (!active) return;
         setStats(statsResponse?.data || null);
         setTraining(trainingResponse?.data || null);
         setV2Learning(learningResponse?.data || null);
       } catch {
+        if (!active) return;
         setStats(null); setTraining(null); setV2Learning(null);
         setLoadError("Today could not be loaded. Check your connection, then try again.");
-      } finally { setLoading(false); }
+      } finally { if (active) setLoading(false); }
     };
     run();
+    return () => { active = false; };
   }, [retryKey, studentId, v2Enabled, v2AccessLoading]);
 
+  const moduleKey = v2Learning?.current?.module?.key;
+  useEffect(() => {
+    let active = true;
+    setDetail(null);
+    if (!moduleKey || loading || !v2Enabled) { setDetailState("idle"); return; }
+    setDetailState("loading");
+    getV2Module(moduleKey, { suppressToast: true })
+      .then(response => { if (active) { setDetail(response?.data || null); setDetailState("ready"); } })
+      .catch(() => { if (active) setDetailState("error"); });
+    return () => { active = false; };
+  }, [moduleKey, detailRetry, loading, v2Enabled]);
+
   const model = useMemo(() => buildTodayModel(v2Learning, training), [v2Learning, training]);
-  if (loading) return <PageContainer><div className="panel h-48 animate-pulse" role="status" aria-label="Loading Today" /></PageContainer>;
-  if (!stats) return <PageContainer width="reading"><div className="panel" role="alert"><h1 className="type-page-title">Today is temporarily unavailable</h1><p className="type-secondary mt-2">{loadError || "Sign in again to continue your training."}</p><button className="btn-primary mt-4" onClick={() => setRetryKey((value) => value + 1)} type="button">Try again</button></div></PageContainer>;
-  return <PageContainer className="today-page space-y-8">
-    <PageHeader title="Today" subtitle={stats.name ? "Good to see you, " + stats.name + ". Here is your next step." : "Here is your next step."} />
-    <TodayContent model={model} training={training} v2Learning={v2Learning} />
-  </PageContainer>;
+  if (loading || v2AccessLoading) return <div className="today-loading" role="status" aria-label="Loading Today">Loading your next step…</div>;
+  if (!stats) return <PageContainer width="reading"><div className="card today-state" role="alert"><h1 className="type-page-title">Today is temporarily unavailable</h1><p className="type-secondary mt-2">{loadError || "Sign in again to continue your training."}</p><button className="btn-primary mt-4" onClick={() => setRetryKey((value) => value + 1)} type="button">Try again</button></div></PageContainer>;
+  return <TodayDashboard model={model} training={training} learning={v2Learning} detail={detail} detailState={detailState} reloadDetail={() => setDetailRetry(value => value + 1)} stats={stats} dark={isDark} MentorFollowUp={MentorFollowUp} />;
 }

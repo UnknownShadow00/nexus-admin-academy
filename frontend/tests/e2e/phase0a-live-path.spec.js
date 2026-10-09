@@ -67,7 +67,7 @@ test("Week 2 quiz presentation and truthful INC2404 repair unlock Week 3", async
   await expect(fifthReview.getByRole("heading", { level: 3 })).toContainText("Q5.");
   for (const option of fifthOptions) await expect(fifthReview.getByText(option, { exact: true })).toBeVisible();
   await page.goto("/");
-  await expect(page.getByText("Up next", { exact: true })).toBeVisible();
+  await expect(page.locator("#continue-learning")).toBeVisible();
   await openAndReturn(page, page.getByRole("link", { name: "Continue Training" }), "INC2404", modulePath);
   await expect(page.getByText("11 of 12 required", { exact: false }).first()).toBeVisible();
   await page.goto("/skills");
