@@ -129,7 +129,7 @@ for (const [width, theme] of modes) {
     await capture(page, `ordering-retry-${width}-${theme}`);
     await page.getByRole("button", { name: "Move Confirm the authorized account, named file, and supplied path. up" }).click();
     await page.getByRole("button", { name: "Check answer" }).click();
-    await expect(page.getByRole("status")).toContainText("Correct");
+    await expect(page.getByRole("status").filter({ hasText: /^Correct/ })).toBeVisible();
     await capture(page, `ordering-correct-${width}-${theme}`);
   });
 

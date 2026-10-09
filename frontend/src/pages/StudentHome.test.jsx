@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
-  checkInStudent: vi.fn(), getStudentStats: vi.fn(), getTrainingDashboard: vi.fn(), getV2Learning: vi.fn(),
+  checkInStudent: vi.fn(), getStudentStats: vi.fn(), getTrainingDashboard: vi.fn(), getV2Learning: vi.fn(), getV2Module: vi.fn(),
 }));
 vi.mock("../services/api", () => api);
 vi.mock("../hooks/useAuth", () => ({ getCurrentStudent: () => ({ id: 42, name: "Taylor" }) }));
@@ -28,6 +28,7 @@ function show(learning) {
 }
 
 beforeEach(() => {
+  api.getV2Module.mockResolvedValue({ data: null });
   api.checkInStudent.mockResolvedValue({ data: {} });
   api.getStudentStats.mockResolvedValue({ data: { name: "Taylor" } });
   api.getTrainingDashboard.mockResolvedValue({ data: { current_module: { title: "Earlier training", route: "/learning-path" } } });
