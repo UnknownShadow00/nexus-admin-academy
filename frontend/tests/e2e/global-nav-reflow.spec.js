@@ -52,7 +52,7 @@ test('approved learner sidebar and mobile navigation keep controls reachable', a
   await page.setViewportSize({ width: 375, height: 812 });
   const mobileNav = page.getByRole('navigation', { name: 'Mobile primary navigation', exact: true });
   await expect(mobileNav.getByRole('link', { name: 'Today', current: 'page' })).toBeVisible();
-  for (const [label, path] of [['My Course', '/learning-v2'], ['Progress', '/progress'], ['Extra Practice', '/learning-path'], ['Today', '/']]) {
+  for (const [label, path] of [['My Course', '/learning-v2'], ['Progress', '/skills'], ['Extra Practice', '/learning-path'], ['Today', '/']]) {
     await mobileNav.getByRole('link', { name: label }).click();
     await expect(page).toHaveURL(new URL(path, process.env.NEXUS_E2E_BASE_URL).href);
     await expect(mobileNav.getByRole('link', { name: label, current: 'page' })).toBeVisible();
