@@ -3214,3 +3214,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: service-desk-app/package.json, service-desk-app/pnpm-lock.yaml, tasks/loop-log.md.
 - Result: PASS locally — frozen install resolves sharp 0.35.5, native Linux import/process succeeds, high-severity audit exits 0 with two moderate findings, lint 5/5, typecheck 10/10, tests 530, build 5/5, and diff check pass.
 - Next: Push the narrow security branch, open its PR, wait for all six CI jobs including Service Desk Docker/health/contract and reviews, and leave the PR open without deployment.
+
+## [2026-10-09 03:58:35 UTC] Task Completed
+- Task: Implement and verify Nexus Academy Phase 1 learner shell and real Today in an isolated development worktree based on fresh origin/main; inspect both design documents and all four reference boards.
+- Files changed: .gitignore; frontend/src/App.jsx; frontend/src/pages/StudentHome.jsx; frontend/src/pages/StudentHome.test.jsx; frontend/src/styles.css; frontend/src/academy.css; frontend/src/components/ui/AcademyScene.jsx; frontend/src/hooks/useDarkMode.test.jsx; frontend/playwright.phase1.config.js; frontend/tests/phase1/{academy.spec.js,api-server.mjs,fixtures.mjs,contrast.mjs}; docs/design/phase1-artwork.md; docs/visual-qa/academy-phase1/{README.md,VERIFICATION.md,verification-summary.json,contrast-*.json,*.png}; tasks/loop-log.md.
+- Result: PASS for scoped implementation: 228 frontend tests, 16 fixture browser tests, build, zero-vulnerability npm audit, no overflow at requested viewports, and 200 rendered contrast samples >= 4.5:1. Finished fantasy artwork fidelity remains pending because no cleared standalone assets were supplied; compositing slots follow the brief. Production, backend, access flags, data, services, migrations, Service Desk source, merge and deployment remain untouched.
+- Next: Open draft PR for owner review; obtain cleared castle/protagonist/shadow-army/monogram assets. Stop before Phase 2.

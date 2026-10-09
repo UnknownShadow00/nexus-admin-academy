@@ -51,3 +51,7 @@ artifacts/e2e-launch-verification/
 !/references/curriculum-dropbox/README.md
 !/references/curriculum-dropbox/.gitkeep
 /references/curriculum-dropbox/.reports/
+
+# Local owner design inputs; composite boards are not production artwork.
+/design-package/
+/docs/visual-qa/academy-phase1/browser-results.json

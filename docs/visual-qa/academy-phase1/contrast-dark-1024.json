@@ -1,0 +1,386 @@
+[
+  {
+    "selector": ".app-brand-subtitle",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 69.78125,
+    "y": 43.703125
+  },
+  {
+    "selector": ".today-primary-title",
+    "foreground": [
+      226,
+      232,
+      240
+    ],
+    "background": [
+      20,
+      30,
+      54
+    ],
+    "ratio": 13.43,
+    "x": 56.71875,
+    "y": 280.5859375
+  },
+  {
+    "selector": ".today-context",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      20,
+      30,
+      54
+    ],
+    "ratio": 11.15,
+    "x": 56.71875,
+    "y": 322.734375
+  },
+  {
+    "selector": ".today-primary .type-label",
+    "foreground": [
+      196,
+      181,
+      253
+    ],
+    "background": [
+      20,
+      30,
+      54
+    ],
+    "ratio": 8.97,
+    "x": 56.71875,
+    "y": 241.921875
+  },
+  {
+    "selector": ".today-primary .type-secondary",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      20,
+      30,
+      54
+    ],
+    "ratio": 11.15,
+    "x": 56.71875,
+    "y": 408.671875
+  },
+  {
+    "selector": ".today-primary .type-meta",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      20,
+      30,
+      54
+    ],
+    "ratio": 11.15,
+    "x": 56.71875,
+    "y": 513.0625
+  },
+  {
+    "selector": ".today-primary-action",
+    "foreground": [
+      255,
+      255,
+      255
+    ],
+    "background": [
+      109,
+      40,
+      217
+    ],
+    "ratio": 7.1,
+    "x": 156.1171875,
+    "y": 448.328125
+  },
+  {
+    "selector": ".today-primary .status-tone",
+    "foreground": [
+      191,
+      219,
+      254
+    ],
+    "background": [
+      30,
+      58,
+      95
+    ],
+    "ratio": 8.1,
+    "x": 119.15625,
+    "y": 354.015625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      48,
+      36,
+      80
+    ],
+    "ratio": 7.71,
+    "x": 67,
+    "y": 856.640625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 378.328125,
+    "y": 856.640625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 689.65625,
+    "y": 856.640625
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      35,
+      41,
+      64
+    ],
+    "ratio": 7.88,
+    "x": 105.1875,
+    "y": 614.53125
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      34,
+      41,
+      64
+    ],
+    "ratio": 7.89,
+    "x": 433.1875,
+    "y": 614.53125
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      35,
+      41,
+      64
+    ],
+    "ratio": 7.88,
+    "x": 761.1875,
+    "y": 614.53125
+  },
+  {
+    "selector": ".today-record > .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      36,
+      41,
+      65
+    ],
+    "ratio": 7.84,
+    "x": 50,
+    "y": 974.9375
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      15,
+      23,
+      42
+    ],
+    "ratio": 9.79,
+    "x": 25,
+    "y": 1068.4765625
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      15,
+      23,
+      42
+    ],
+    "ratio": 9.79,
+    "x": 25,
+    "y": 1098.0859375
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      196,
+      181,
+      253
+    ],
+    "background": [
+      15,
+      23,
+      42
+    ],
+    "ratio": 9.67,
+    "x": 215.890625,
+    "y": 1067.671875
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      196,
+      181,
+      253
+    ],
+    "background": [
+      15,
+      23,
+      42
+    ],
+    "ratio": 9.67,
+    "x": 178.71875,
+    "y": 1097.28125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      196,
+      181,
+      253
+    ],
+    "background": [
+      48,
+      36,
+      80
+    ],
+    "ratio": 7.61,
+    "x": 102.3984375,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 307.203125,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 512.0078125,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 716.8046875,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 921.6015625,
+    "y": 833.8125
+  }
+]

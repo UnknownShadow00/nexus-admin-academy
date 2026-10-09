@@ -40,7 +40,7 @@ describe("Today next action", () => {
     show({ current, modules: [current], corrections: [] });
     expect(await screen.findByRole("heading", { name: "Windows basics" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Continue lesson" })).toHaveAttribute("href", current.continue.route);
-    expect(screen.getByRole("complementary", { name: "Mentor follow-up" })).toHaveTextContent("Nothing waiting right now");
+    expect(screen.queryByRole("complementary", { name: "Mentor follow-up" })).not.toBeInTheDocument();
     expect(screen.queryByText(/XP|streak|recent activity/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Network\+|Security\+/i)).not.toBeInTheDocument();
   });
@@ -142,5 +142,35 @@ describe("Today next action", () => {
   it("does not claim learning is available when the server has no current module", () => {
     expect(buildTodayModel(null, null).mode).toBe("up_to_date");
     expect(buildContinueTarget(null, null).to).toBe("/learning-path");
+  });
+});
+
+describe("Today evidence and motivation", () => {
+  it("shows supplied counts and keeps motivation separate from mastery", async () => {
+    const current = stage(4, next(), { lessons: { completed: 2, total: 5 }, quick_checks: { completed: 1, total: 4 } });
+    api.getStudentStats.mockResolvedValue({ data: { name: "Taylor", total_xp: 0, streak: 0, level_name: "Explorer" } });
+    show({ current, modules: [current] });
+    expect(await screen.findByRole("progressbar", { name: "Lessons completed" })).toHaveAttribute("value", "2");
+    expect(screen.getByRole("progressbar", { name: "Quick Checks passed" })).toHaveAttribute("max", "4");
+    expect(screen.getByRole("region", { name: "Learning motivation" })).toHaveTextContent("0 XP");
+    expect(screen.getByRole("region", { name: "Learning motivation" })).toHaveTextContent("0 days");
+    expect(screen.getByRole("region", { name: "Your learning record" })).not.toHaveTextContent("Mastered");
+    expect(document.querySelectorAll(".today-page .btn-primary")).toHaveLength(1);
+  });
+
+  it("hides unsupported or inconsistent counters and missing motivation data", async () => {
+    const current = stage(4, next(), { lessons: { completed: 6, total: 5 }, quick_checks: { completed: 0, total: 0 } });
+    show({ current, modules: [current] });
+    await screen.findByRole("heading", { name: "Your learning record" });
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Learning motivation" })).not.toBeInTheDocument();
+  });
+
+  it("exposes retry after a failed request without showing a guessed Continue", async () => {
+    api.getStudentStats.mockRejectedValue(new Error("fixture failure"));
+    show(null);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Today is temporarily unavailable");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Continue/ })).not.toBeInTheDocument();
   });
 });

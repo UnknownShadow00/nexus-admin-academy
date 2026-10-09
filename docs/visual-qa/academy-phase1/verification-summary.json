@@ -1,0 +1,54 @@
+{
+  "recorded_at_utc": "2026-10-09T03:57:48.549157+00:00",
+  "base_commit": "663d623041bd0b434d0bf2724a4161b23ececb6e",
+  "browser": {
+    "startTime": "2026-10-09T03:56:00.766Z",
+    "duration": 12269.537,
+    "expected": 16,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "frontend": {
+    "files": 39,
+    "passed": 228,
+    "failed": 0,
+    "command": "npm test -- --maxWorkers=1"
+  },
+  "contrast": {
+    "contrast-dark-1024": {
+      "samples": 24,
+      "minimum_ratio": 7.1
+    },
+    "contrast-dark-1280": {
+      "samples": 26,
+      "minimum_ratio": 7.1
+    },
+    "contrast-dark-1440": {
+      "samples": 26,
+      "minimum_ratio": 7.1
+    },
+    "contrast-dark-390": {
+      "samples": 24,
+      "minimum_ratio": 5.9
+    },
+    "contrast-light-1024": {
+      "samples": 24,
+      "minimum_ratio": 5.29
+    },
+    "contrast-light-1280": {
+      "samples": 26,
+      "minimum_ratio": 5.85
+    },
+    "contrast-light-1440": {
+      "samples": 26,
+      "minimum_ratio": 5.85
+    },
+    "contrast-light-390": {
+      "samples": 24,
+      "minimum_ratio": 5.91
+    }
+  },
+  "isolation": "Loopback-only synthetic API fixtures; no backend, database, env file or production service used.",
+  "scope": "Phase 1 learner shell and Today only; approved artwork slots remain empty."
+}

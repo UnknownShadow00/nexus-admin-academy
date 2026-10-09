@@ -13,6 +13,7 @@ import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import StudentHome from "./pages/StudentHome";
 import { authLogout, getAdminV2PracticalReviews, globalSearch } from "./services/api";
+import AcademyScene from "./components/ui/AcademyScene";
 import { V2_CURRICULUM_ENABLED } from "./config/features";
 import { useV2Access } from "./hooks/useV2Access";
 
@@ -156,8 +157,10 @@ export function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
       {items.map((item) => {
         if (!item.children) {
           const active = isNavItemActive(item, location, coursePractical);
+          const Icon = !isAdminRoute ? bottomIcons[item.label] : null;
+          const content = <>{Icon ? <Icon size={18} aria-hidden="true" /> : null}{item.label}</>;
           const props = { className: "app-nav-link", "aria-current": active ? "page" : undefined, onClick: onNavigate };
-          return item.external ? <a key={item.to} {...props} href={item.to}>{item.label}</a> : <Link key={item.to} {...props} to={item.to}>{item.label}</Link>;
+          return item.external ? <a key={item.to} {...props} href={item.to}>{content}</a> : <Link key={item.to} {...props} to={item.to}>{content}</Link>;
         }
 
         const groupActive = isNavItemActive(item, location, coursePractical);
@@ -192,7 +195,7 @@ export function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
               aria-haspopup="true"
               onClick={() => setOpenGroup(isOpen ? null : item.label)}
             >
-              {item.label}
+              {!isAdminRoute ? <Wrench size={18} aria-hidden="true" /> : null}{item.label}
               <ChevronDown size={15} aria-hidden="true" />
             </button>
             {isOpen ? (
@@ -278,11 +281,18 @@ export default function App() {
 
   useEffect(() => {
     setMobileOpen(false);
-    setAccountOpen(false);
     setSearchOpen(false);
     setSearchQuery("");
     setSearchResults({ lessons: [], commands: [] });
   }, [location.pathname]);
+
+  // Close account controls when navigation starts. A lazy route can commit
+  // later, after the learner has opened a new account menu on the next screen.
+  useEffect(() => {
+    const closeAccount = () => setAccountOpen(false);
+    window.addEventListener("popstate", closeAccount);
+    return () => window.removeEventListener("popstate", closeAccount);
+  }, []);
 
   useEffect(() => { if (searchOpen) searchInput.current?.focus(); }, [searchOpen]);
   useEffect(() => { if (accountOpen) accountPanel.current?.querySelector("button")?.focus(); }, [accountOpen]);
@@ -367,20 +377,22 @@ export default function App() {
     } catch {
       // Local cleanup still logs the browser out if the backend is unavailable.
     }
+    setAccountOpen(false);
     clearAuthSession();
     navigate("/login");
   }
 
   return (
-    <div className="app-root">
+    <div className={"app-root" + (showChrome && !isAdminRoute ? " academy-shell" : "")} onClickCapture={(event) => { if (event.target.closest?.("a[href]")) setAccountOpen(false); }}>
       {showChrome ? <>
-        <header ref={headerRef} className={`app-header${isAdminRoute ? " app-header-admin" : ""}`}>
+        {!isAdminRoute ? <a className="academy-skip-link" href="#app-main">Skip to content</a> : null}
+        <header ref={headerRef} className={`app-header${isAdminRoute ? " app-header-admin" : " app-header-academy"}`}>
           <div className="app-header-inner">
             <Link ref={brandLink} className="app-brand" to={isAdminRoute ? "/admin" : "/"} aria-label="Nexus Admin Academy home">
-              <span className="app-brand-mark" aria-hidden="true">N</span>
+              <span className="app-brand-mark" aria-hidden="true">{isAdminRoute ? "N" : <img src="/favicon.svg" alt="" width="34" height="34" />}</span>
               <span><span className="app-brand-title">Nexus</span><span className="app-brand-subtitle">Admin Academy</span></span>
             </Link>
-            <AppNav items={navItems} isAdminRoute={isAdminRoute} />
+            {isAdminRoute ? <AppNav items={navItems} isAdminRoute /> : <p className="academy-header-context">Learn <span aria-hidden="true">/</span> {navItems.find((item) => isNavItemActive(item, location))?.label || "Academy"}</p>}
             <div className="app-toolbar">
               {showSearch ? <div ref={searchAnchor} className="app-popover-anchor">
                 <button ref={searchButton} className="app-icon-button" onClick={() => { setSearchOpen((open) => !open); setAccountOpen(false); setMobileOpen(false); }} aria-expanded={searchOpen} aria-controls={searchOpen ? "app-search-panel" : undefined} aria-label="Toggle search" type="button"><Search size={19} aria-hidden="true" /></button>
@@ -411,6 +423,15 @@ export default function App() {
               <button ref={menuButton} className="app-icon-button app-menu-toggle" onClick={() => { setMobileOpen((open) => !open); setSearchOpen(false); setAccountOpen(false); }} aria-label="Toggle menu" aria-expanded={mobileOpen} aria-controls={mobileOpen ? "app-mobile-menu" : undefined} type="button">{mobileOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}</button>
             </div>
           </div>
+          {!isAdminRoute ? <aside className="academy-sidebar" aria-label="Academy sidebar">
+            <p className="academy-nav-label">Your academy</p>
+            <AppNav items={navItems} isAdminRoute={false} />
+            <div className="academy-sidebar-atmosphere">
+              <AcademyScene variant="sidebar" />
+              <p>Discipline today.<br /><strong>A stronger tomorrow.</strong></p>
+            </div>
+            <div className="academy-sidebar-footer"><span>Learn · Practice · Grow</span><span>Nexus Academy</span></div>
+          </aside> : null}
           {mobileOpen ? <>
             <div className="app-menu-backdrop" aria-hidden="true" onClick={() => { setMobileOpen(false); menuButton.current?.focus(); }} />
             <div ref={menuPanel} id="app-mobile-menu" className="app-menu-panel">
@@ -423,7 +444,7 @@ export default function App() {
         </header>
         {!isAdminRoute ? <BottomNav items={navItems} menuOpen={mobileOpen} /> : null}
       </> : null}
-      <div className={showChrome && !isAdminRoute ? "app-main-with-bottom-nav" : ""} aria-hidden={mobileOpen || undefined} inert={mobileOpen ? "" : undefined}>
+      <div id="app-main" tabIndex={-1} className={showChrome && !isAdminRoute ? "app-main-with-bottom-nav" : ""} aria-hidden={mobileOpen || undefined} inert={mobileOpen ? "" : undefined}>
       <Suspense fallback={<div className="mx-auto max-w-3xl p-6" role="status">Loading page...</div>}>
       <MonitoredRoutes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
