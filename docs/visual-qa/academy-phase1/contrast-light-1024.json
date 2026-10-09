@@ -1,0 +1,386 @@
+[
+  {
+    "selector": ".app-brand-subtitle",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 69.78125,
+    "y": 43.703125
+  },
+  {
+    "selector": ".today-primary-title",
+    "foreground": [
+      30,
+      41,
+      59
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 13.65,
+    "x": 50.5625,
+    "y": 232.6171875
+  },
+  {
+    "selector": ".today-context",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.07,
+    "x": 50.5625,
+    "y": 286.046875
+  },
+  {
+    "selector": ".today-primary .type-label",
+    "foreground": [
+      89,
+      48,
+      177
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.89,
+    "x": 50.5625,
+    "y": 193.953125
+  },
+  {
+    "selector": ".today-primary .type-secondary",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.07,
+    "x": 50.5625,
+    "y": 383.265625
+  },
+  {
+    "selector": ".today-primary .type-meta",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.07,
+    "x": 50.5625,
+    "y": 487.65625
+  },
+  {
+    "selector": ".today-primary-action",
+    "foreground": [
+      255,
+      255,
+      255
+    ],
+    "background": [
+      109,
+      40,
+      217
+    ],
+    "ratio": 7.1,
+    "x": 149.9609375,
+    "y": 422.921875
+  },
+  {
+    "selector": ".today-primary .status-tone",
+    "foreground": [
+      30,
+      64,
+      175
+    ],
+    "background": [
+      219,
+      234,
+      254
+    ],
+    "ratio": 7.15,
+    "x": 113,
+    "y": 328.609375
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 67,
+    "y": 822.59375
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 378.328125,
+    "y": 822.59375
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 689.65625,
+    "y": 822.59375
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      247,
+      255
+    ],
+    "ratio": 5.91,
+    "x": 104.390625,
+    "y": 581.28125
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      247,
+      255
+    ],
+    "ratio": 5.91,
+    "x": 432.390625,
+    "y": 581.28125
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      247,
+      255
+    ],
+    "ratio": 5.91,
+    "x": 760.390625,
+    "y": 581.28125
+  },
+  {
+    "selector": ".today-record > .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      247,
+      244,
+      255
+    ],
+    "ratio": 5.78,
+    "x": 50,
+    "y": 940.890625
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      251,
+      253
+    ],
+    "ratio": 6.05,
+    "x": 25,
+    "y": 1034.4296875
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      250,
+      252
+    ],
+    "ratio": 6.01,
+    "x": 25,
+    "y": 1064.0390625
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      89,
+      48,
+      177
+    ],
+    "background": [
+      248,
+      250,
+      252
+    ],
+    "ratio": 8.09,
+    "x": 215.890625,
+    "y": 1033.625
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      89,
+      48,
+      177
+    ],
+    "background": [
+      248,
+      250,
+      252
+    ],
+    "ratio": 8.09,
+    "x": 178.71875,
+    "y": 1063.234375
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      89,
+      48,
+      177
+    ],
+    "background": [
+      237,
+      233,
+      254
+    ],
+    "ratio": 7.13,
+    "x": 102.3984375,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 307.203125,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 512.0078125,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 716.8046875,
+    "y": 833.8125
+  },
+  {
+    "selector": ".app-bottom-nav-link",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 921.6015625,
+    "y": 833.8125
+  }
+]

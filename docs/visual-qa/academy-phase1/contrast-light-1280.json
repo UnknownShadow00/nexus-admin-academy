@@ -1,0 +1,418 @@
+[
+  {
+    "selector": ".app-brand-subtitle",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 69.78125,
+    "y": 43.703125
+  },
+  {
+    "selector": ".today-primary-title",
+    "foreground": [
+      30,
+      41,
+      59
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 13.65,
+    "x": 288.71875,
+    "y": 248.1171875
+  },
+  {
+    "selector": ".today-context",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.07,
+    "x": 288.71875,
+    "y": 302.703125
+  },
+  {
+    "selector": ".today-primary .type-label",
+    "foreground": [
+      89,
+      48,
+      177
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.89,
+    "x": 288.71875,
+    "y": 208.296875
+  },
+  {
+    "selector": ".today-primary .type-secondary",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.07,
+    "x": 288.71875,
+    "y": 399.921875
+  },
+  {
+    "selector": ".today-primary .type-meta",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      244,
+      247,
+      255
+    ],
+    "ratio": 7.07,
+    "x": 288.71875,
+    "y": 504.3125
+  },
+  {
+    "selector": ".today-primary-action",
+    "foreground": [
+      255,
+      255,
+      255
+    ],
+    "background": [
+      109,
+      40,
+      217
+    ],
+    "ratio": 7.1,
+    "x": 388.1171875,
+    "y": 439.578125
+  },
+  {
+    "selector": ".today-primary .status-tone",
+    "foreground": [
+      30,
+      64,
+      175
+    ],
+    "background": [
+      219,
+      234,
+      254
+    ],
+    "ratio": 7.15,
+    "x": 351.15625,
+    "y": 345.265625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 299,
+    "y": 845.40625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 618.328125,
+    "y": 845.40625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      255,
+      255,
+      255
+    ],
+    "ratio": 6.28,
+    "x": 937.65625,
+    "y": 845.40625
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      247,
+      255
+    ],
+    "ratio": 5.91,
+    "x": 336.390625,
+    "y": 604.09375
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      247,
+      255
+    ],
+    "ratio": 5.91,
+    "x": 672.390625,
+    "y": 604.09375
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      249,
+      247,
+      255
+    ],
+    "ratio": 5.91,
+    "x": 1008.390625,
+    "y": 604.09375
+  },
+  {
+    "selector": ".today-record > .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      247,
+      245,
+      255
+    ],
+    "ratio": 5.82,
+    "x": 282,
+    "y": 963.703125
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      248,
+      250,
+      252
+    ],
+    "ratio": 6,
+    "x": 257,
+    "y": 1057.2421875
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      248,
+      250,
+      252
+    ],
+    "ratio": 6,
+    "x": 257,
+    "y": 1086.8515625
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      89,
+      48,
+      177
+    ],
+    "background": [
+      248,
+      250,
+      252
+    ],
+    "ratio": 8.09,
+    "x": 447.890625,
+    "y": 1056.4375
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      89,
+      48,
+      177
+    ],
+    "background": [
+      248,
+      250,
+      252
+    ],
+    "ratio": 8.09,
+    "x": 410.71875,
+    "y": 1086.046875
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      255,
+      255,
+      255
+    ],
+    "background": [
+      89,
+      47,
+      210
+    ],
+    "ratio": 7.6,
+    "x": 115.5,
+    "y": 127.59375
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      244,
+      240,
+      253
+    ],
+    "ratio": 6.76,
+    "x": 115.5,
+    "y": 185.15625
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      250,
+      248,
+      255
+    ],
+    "ratio": 7.19,
+    "x": 115.5,
+    "y": 240.71875
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      250,
+      249,
+      255
+    ],
+    "ratio": 7.24,
+    "x": 115.5,
+    "y": 296.28125
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      71,
+      85,
+      105
+    ],
+    "background": [
+      251,
+      250,
+      255
+    ],
+    "ratio": 7.3,
+    "x": 115.5,
+    "y": 351.84375
+  },
+  {
+    "selector": ".academy-sidebar-footer span",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      252,
+      253,
+      255
+    ],
+    "ratio": 6.17,
+    "x": 24.1875,
+    "y": 854.1953125
+  },
+  {
+    "selector": ".academy-sidebar-footer span",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      251,
+      253,
+      255
+    ],
+    "ratio": 6.16,
+    "x": 24.1875,
+    "y": 876.1953125
+  }
+]

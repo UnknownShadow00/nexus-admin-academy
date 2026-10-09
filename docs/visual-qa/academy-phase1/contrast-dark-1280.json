@@ -1,0 +1,418 @@
+[
+  {
+    "selector": ".app-brand-subtitle",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 69.78125,
+    "y": 43.703125
+  },
+  {
+    "selector": ".today-primary-title",
+    "foreground": [
+      226,
+      232,
+      240
+    ],
+    "background": [
+      17,
+      27,
+      51
+    ],
+    "ratio": 13.87,
+    "x": 288.71875,
+    "y": 248.1171875
+  },
+  {
+    "selector": ".today-context",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      17,
+      27,
+      50
+    ],
+    "ratio": 11.53,
+    "x": 288.71875,
+    "y": 302.703125
+  },
+  {
+    "selector": ".today-primary .type-label",
+    "foreground": [
+      196,
+      181,
+      253
+    ],
+    "background": [
+      17,
+      27,
+      51
+    ],
+    "ratio": 9.26,
+    "x": 288.71875,
+    "y": 208.296875
+  },
+  {
+    "selector": ".today-primary .type-secondary",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      17,
+      27,
+      50
+    ],
+    "ratio": 11.53,
+    "x": 288.71875,
+    "y": 399.921875
+  },
+  {
+    "selector": ".today-primary .type-meta",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      17,
+      27,
+      50
+    ],
+    "ratio": 11.53,
+    "x": 288.71875,
+    "y": 504.3125
+  },
+  {
+    "selector": ".today-primary-action",
+    "foreground": [
+      255,
+      255,
+      255
+    ],
+    "background": [
+      109,
+      40,
+      217
+    ],
+    "ratio": 7.1,
+    "x": 388.1171875,
+    "y": 439.578125
+  },
+  {
+    "selector": ".today-primary .status-tone",
+    "foreground": [
+      191,
+      219,
+      254
+    ],
+    "background": [
+      30,
+      58,
+      95
+    ],
+    "ratio": 8.1,
+    "x": 351.15625,
+    "y": 345.265625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 299,
+    "y": 845.40625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 618.328125,
+    "y": 845.40625
+  },
+  {
+    "selector": ".today-record-item .type-label",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      41,
+      59
+    ],
+    "ratio": 8.02,
+    "x": 937.65625,
+    "y": 845.40625
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      37,
+      62
+    ],
+    "ratio": 8.29,
+    "x": 336.390625,
+    "y": 604.09375
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      37,
+      62
+    ],
+    "ratio": 8.29,
+    "x": 672.390625,
+    "y": 604.09375
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      30,
+      37,
+      62
+    ],
+    "ratio": 8.29,
+    "x": 1008.390625,
+    "y": 604.09375
+  },
+  {
+    "selector": ".today-record > .type-meta",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      32,
+      38,
+      64
+    ],
+    "ratio": 8.15,
+    "x": 282,
+    "y": 963.703125
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      10,
+      17,
+      36
+    ],
+    "ratio": 10.3,
+    "x": 257,
+    "y": 1057.2421875
+  },
+  {
+    "selector": ".today-bottom-line",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      10,
+      17,
+      36
+    ],
+    "ratio": 10.3,
+    "x": 257,
+    "y": 1086.8515625
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      196,
+      181,
+      253
+    ],
+    "background": [
+      10,
+      17,
+      36
+    ],
+    "ratio": 10.17,
+    "x": 447.890625,
+    "y": 1056.4375
+  },
+  {
+    "selector": ".today-bottom-line a",
+    "foreground": [
+      196,
+      181,
+      253
+    ],
+    "background": [
+      10,
+      18,
+      37
+    ],
+    "ratio": 10.1,
+    "x": 410.71875,
+    "y": 1086.046875
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      255,
+      255,
+      255
+    ],
+    "background": [
+      89,
+      47,
+      210
+    ],
+    "ratio": 7.6,
+    "x": 115.5,
+    "y": 127.59375
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      32,
+      36,
+      66
+    ],
+    "ratio": 10.16,
+    "x": 115.5,
+    "y": 185.15625
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      29,
+      37,
+      62
+    ],
+    "ratio": 10.2,
+    "x": 115.5,
+    "y": 240.71875
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      28,
+      36,
+      60
+    ],
+    "ratio": 10.35,
+    "x": 115.5,
+    "y": 296.28125
+  },
+  {
+    "selector": ".academy-sidebar .app-nav-link",
+    "foreground": [
+      203,
+      213,
+      225
+    ],
+    "background": [
+      27,
+      36,
+      60
+    ],
+    "ratio": 10.37,
+    "x": 115.5,
+    "y": 351.84375
+  },
+  {
+    "selector": ".academy-sidebar-footer span",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      24,
+      37,
+      59
+    ],
+    "ratio": 8.43,
+    "x": 24.1875,
+    "y": 854.1953125
+  },
+  {
+    "selector": ".academy-sidebar-footer span",
+    "foreground": [
+      180,
+      193,
+      212
+    ],
+    "background": [
+      24,
+      37,
+      60
+    ],
+    "ratio": 8.42,
+    "x": 24.1875,
+    "y": 876.1953125
+  }
+]

@@ -1,0 +1,64 @@
+{
+  "recorded_at_utc": "2026-10-09T04:39:05.889446+00:00",
+  "base_commit": "663d623041bd0b434d0bf2724a4161b23ececb6e",
+  "correction_baseline": "536fb8c",
+  "browser": {
+    "startTime": "2026-10-09T04:38:28.912Z",
+    "duration": 18635.793,
+    "expected": 17,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "frontend": {
+    "files": 39,
+    "passed": 228,
+    "failed": 0,
+    "duration_seconds": 29.42,
+    "command": "npm test -- --maxWorkers=1"
+  },
+  "build": {
+    "passed": true,
+    "duration_seconds": 2.28,
+    "warning": "Existing JS chunk exceeds 500 kB"
+  },
+  "audit": {
+    "vulnerabilities": 0
+  },
+  "contrast": {
+    "contrast-dark-1024": {
+      "samples": 24,
+      "minimum_ratio": 7.1
+    },
+    "contrast-dark-1280": {
+      "samples": 26,
+      "minimum_ratio": 7.1
+    },
+    "contrast-dark-1440": {
+      "samples": 26,
+      "minimum_ratio": 7.1
+    },
+    "contrast-dark-390": {
+      "samples": 24,
+      "minimum_ratio": 7.1
+    },
+    "contrast-light-1024": {
+      "samples": 24,
+      "minimum_ratio": 5.78
+    },
+    "contrast-light-1280": {
+      "samples": 26,
+      "minimum_ratio": 5.82
+    },
+    "contrast-light-1440": {
+      "samples": 26,
+      "minimum_ratio": 5.77
+    },
+    "contrast-light-390": {
+      "samples": 24,
+      "minimum_ratio": 5.87
+    }
+  },
+  "isolation": "Loopback-only synthetic API fixtures; no backend, database, env file or production service used.",
+  "scope": "Corrected Phase 1 learner shell and Today only, with original provisional artwork. No merge/deploy/Phase 2."
+}

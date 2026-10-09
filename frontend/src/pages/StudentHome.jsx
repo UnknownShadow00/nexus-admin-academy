@@ -1,6 +1,7 @@
-import { ArrowRight, Clock3, MessageSquareText } from "lucide-react";
+import { ArrowRight, BookOpen, Clock3, Flame, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import AcademyScene from "../components/ui/AcademyScene";
 import PageContainer from "../components/ui/PageContainer";
 import PageHeader from "../components/ui/PageHeader";
 import V2Status from "../components/v2/V2Status";
@@ -106,7 +107,7 @@ function MentorFollowUp({ items, learningAvailable = false }) {
   </aside>;
 }
 
-function TodayContent({ model, training, v2Learning }) {
+function TodayContent({ model, training, v2Learning, stats }) {
   const { target, followUps, correction, mode } = model;
   const current = v2Learning?.current;
   const secondaryFollowUps = mode === "correction" ? followUps.filter((item) => item.key !== correction?.key) : followUps;
@@ -126,8 +127,10 @@ function TodayContent({ model, training, v2Learning }) {
       : mode === "mastered" ? { label: "View My Course", to: "/learning-v2" }
         : mode === "legacy_complete" ? { label: target.label, to: target.to } : null;
   return <>
-    <div className={"today-layout" + (mode === "correction" && !secondaryFollowUps.length ? " today-layout-solo" : "")}>
+    <div className="today-hero-wrap">
       <section aria-labelledby="today-primary-heading" className={"today-primary" + (mode === "correction" ? " today-primary-correction" : "")}>
+        <AcademyScene />
+        <div className="today-hero-copy">
         <p className="type-label">{mode === "learning" ? "Up next" : mode === "correction" ? "Changes requested" : mode === "mastered" ? "Stage mastered" : mode === "legacy_complete" ? "Training complete" : "Current learning"}</p>
         <h2 id="today-primary-heading" className="today-primary-title">{primaryTitle}</h2>
         {current ? <p className="today-context">{current.certification?.name} <span aria-hidden="true">·</span> {mode === "correction" ? correction?.stage : current.module?.title}</p> : target.detail ? <p className="today-context">{target.detail}</p> : null}
@@ -138,14 +141,62 @@ function TodayContent({ model, training, v2Learning }) {
           : mode === "waiting" ? <Link className="btn-secondary mt-6" to="/learning-v2">View My Course</Link>
             : mode === "up_to_date" ? <Link className="btn-secondary mt-6" to={current ? "/learning-v2" : "/learning-path"}>View course</Link> : null}
         {mode === "learning" && target.estimatedMinutes ? <p className="type-meta mt-3 flex items-center gap-1.5"><Clock3 size={14} aria-hidden="true" />About {target.estimatedMinutes} min</p> : null}
+        </div>
+        <p className="today-hero-motto" aria-hidden="true">Small steps.<br />Real skills.<br /><strong>A stronger you.</strong></p>
       </section>
-      {mode !== "correction" || secondaryFollowUps.length ? <MentorFollowUp items={secondaryFollowUps} learningAvailable={mode === "learning"} /> : null}
+    </div>
+    <MotivationRecord stats={stats} />
+    <div className={"today-record-layout" + (!secondaryFollowUps.length ? " today-record-layout-solo" : "")}>
+      <LearningRecord current={current} training={training} />
+      {secondaryFollowUps.length ? <MentorFollowUp items={secondaryFollowUps} learningAvailable={mode === "learning"} /> : null}
     </div>
     {current ? <footer className="today-quiet-links">
       <p className="today-bottom-line">Your full stage record is in <Link to="/learning-v2">My Course</Link>.</p>
       <p className="today-bottom-line">Want more practice? <Link to="/learning-path">Open Extra Practice</Link>.</p>
     </footer> : null}
   </>;
+}
+
+function hasCount(value) { return Number.isInteger(value) && value >= 0; }
+
+function CountRecord({ label, completed, total }) {
+  if (!hasCount(completed) || !hasCount(total) || total === 0 || completed > total) return null;
+  return <div className="today-record-item">
+    <p className="type-label">{label}</p>
+    <p className="today-record-number">{completed}<span> / {total}</span></p>
+    <progress aria-label={label} value={completed} max={total} />
+  </div>;
+}
+
+function LearningRecord({ current, training }) {
+  const progress = current?.progress;
+  const module = training?.current_module;
+  if (!current && !module) return null;
+  return <section className="today-record" aria-labelledby="today-record-heading">
+    <div className="today-record-heading"><BookOpen size={19} aria-hidden="true" /><h2 id="today-record-heading" className="type-section-title">Your learning record</h2></div>
+    <p className="type-secondary mt-2">{current?.module?.title || module?.title}</p>
+    <div className="today-record-grid">
+      {current ? <>
+        <CountRecord label="Lessons completed" completed={progress?.lessons?.completed} total={progress?.lessons?.total} />
+        <CountRecord label="Quick Checks passed" completed={progress?.quick_checks?.completed} total={progress?.quick_checks?.total} />
+        <div className="today-record-item"><p className="type-label">Stage mastery</p><p className="mt-4"><V2Status status={stageProgressStatus(progress)} /></p></div>
+      </> : <CountRecord label="Required activities completed" completed={module?.required_complete} total={module?.required_total} />}
+    </div>
+    <p className="type-meta mt-4">{current ? "Lesson completion and checks are tracked separately. Stage mastery follows your course evidence." : "Required activity completion follows your learning path record."}</p>
+  </section>;
+}
+
+function MotivationRecord({ stats }) {
+  const items = [
+    typeof stats.level_name === "string" && stats.level_name ? { label: "Academy rank", value: stats.level_name, Icon: ShieldCheck } : null,
+    hasCount(stats.total_xp) ? { label: "Experience", value: stats.total_xp.toLocaleString() + " XP", Icon: Sparkles } : null,
+    hasCount(stats.streak) ? { label: "Learning streak", value: stats.streak + (stats.streak === 1 ? " day" : " days"), Icon: Flame } : null,
+  ].filter(Boolean);
+  if (!items.length) return null;
+  return <section aria-label="Learning motivation" className="today-motivation">
+    <div className="today-motivation-grid">{items.map(({ label, value, Icon }) => <div className="today-motivation-item" key={label}><span className="today-motivation-icon"><Icon size={22} aria-hidden="true" /></span><div><p className="type-meta">{label}</p><p className="today-motivation-value">{value}</p></div></div>)}</div>
+    <p className="type-meta mt-2">Rank, XP and streak celebrate consistency. Your learning record tracks course evidence.</p>
+  </section>;
 }
 
 export default function StudentHome() {
@@ -187,6 +238,6 @@ export default function StudentHome() {
   if (!stats) return <PageContainer width="reading"><div className="panel" role="alert"><h1 className="type-page-title">Today is temporarily unavailable</h1><p className="type-secondary mt-2">{loadError || "Sign in again to continue your training."}</p><button className="btn-primary mt-4" onClick={() => setRetryKey((value) => value + 1)} type="button">Try again</button></div></PageContainer>;
   return <PageContainer className="today-page space-y-8">
     <PageHeader title="Today" subtitle={stats.name ? "Good to see you, " + stats.name + ". Here is your next step." : "Here is your next step."} />
-    <TodayContent model={model} training={training} v2Learning={v2Learning} />
+    <TodayContent model={model} training={training} v2Learning={v2Learning} stats={stats} />
   </PageContainer>;
 }
