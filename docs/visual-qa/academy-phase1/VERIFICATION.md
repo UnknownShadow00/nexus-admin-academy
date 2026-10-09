@@ -1,51 +1,57 @@
-# Phase 1 verification
+# Phase 1 visual correction verification
 
-Branch: `feature/nexus-academy-phase1`
+Draft PR: [#64](https://github.com/UnknownShadow00/nexus-admin-academy/pull/64). Owner approval remains pending; no merge or deployment.
 
-Worktree: `/home/nexus/worktrees/nexus-academy-phase1`
+Worktree: `/home/nexus/worktrees/nexus-academy-phase1`; branch `feature/nexus-academy-phase1`.
 
-Base: fresh `origin/main`, `663d623041bd0b434d0bf2724a4161b23ececb6e`, independently matched to `git ls-remote origin refs/heads/main` before worktree creation.
+Fresh remote main was reverified as `663d623041bd0b434d0bf2724a4161b23ececb6e`. The correction continues the existing draft branch from `536fb8c`. Its previously committed 1440px light/dark screenshots were copied byte-for-byte to `pr64-before-*.png` before editing. The [gallery](README.md) compares the rejected PR result directly with this correction using the same synthetic account, API responses, theme and 1440×900 CSS viewport. Full-page captures extend below the viewport.
+
+## Changes and visual review
+
+- Replaced empty castle/character/army slots with original daylight and moonlit fortress scenes, a faceless hooded foreground character and glowing-eye shadow sentinels. All are local assets; no supplied board was cropped or used as an image-generation input.
+- Added subtle original ambient mist behind the dashboard and coherent blue/violet card borders, surfaces, shadows and icon wells. Reading panels remain opaque.
+- Integrated the same artwork at the sidebar foot, refined selected navigation, prevented expanded submenu width from clipping the sidebar, and reduced desktop heading/hero spacing. Narrow heroes place art above a solid text surface.
+- Changed learner header, login and document title to **Nexus Academy**. Added an original SVG N mark; admin header branding stays separate.
+- Preserved the existing Phase 1 model, API routes, counts, navigation access, status vocabulary, theme and account behavior. This correction makes no changes to `StudentHome.jsx` or backend logic.
+
+The rendered 1440/1280 light/dark, 1024/390 sanity views, expanded sidebar, keyboard focus and mobile menu captures were inspected. The castle, hood and army are now visible rather than absent; daylight remains softer and night carries the moonlit shadow atmosphere. See [asset placement, generation recipes and hashes](../../design/phase1-artwork.md).
 
 ## Results
 
 | Check | Result | Evidence / limits |
 | --- | --- | --- |
-| Full frontend Vitest suite | PASS: 39 files, 228 tests | `npm test -- --maxWorkers=1`; includes original Today/nav/access/auth tests and new count/theme/error tests |
-| Browser suite | PASS: 16 tests, 12.3 seconds | `npx playwright test --config playwright.phase1.config.js`; 13 new checks plus 3 unchanged existing navigation/reflow/pilot tests |
-| Frontend production build | PASS | `npm run build`; existing large-chunk warning remains |
-| Dependency audit | PASS: zero vulnerabilities | `npm audit --json`; no dependency/lockfile changes |
-| Contrast | PASS for sampled new surfaces | 200 rendered-background samples across light/dark at 1440, 1280, 1024, 390. Minima: light 5.29:1; dark 5.90:1. Exact samples in `contrast-*.json` |
-| Reflow / keyboard / reduced motion | PASS in browser suite | No page overflow at requested widths; existing nav also checks 320–1440 and CSS zoom surrogate. Menu inert state, Escape, skip link, sidebar outline, reduced motion verified |
-| Before screenshots | PASS: 2 separate captures | Unmodified base source extracted to disposable space; same API fixtures and 1440×900 viewport |
-| Lint / static type check / coverage | NOT CONFIGURED / NOT RUN | Project has no lint or type-check scripts. No coverage instrumentation installed; no coverage percentage claimed |
-| Finished fantasy artwork fidelity | PENDING ASSETS | No standalone cleared art was provided. Asset slots, compositing, themes and scrims implemented per brief; no board crops used |
+| Full frontend Vitest suite | PASS: 39 files, 228 tests, 29.42s | `npm test -- --maxWorkers=1`; existing nav, auth, Today and theme/count tests retained |
+| Browser suite | PASS: 17 tests, 18.6s | `npx playwright test --config playwright.phase1.config.js`; 14 Phase 1 checks plus 3 existing reflow/pilot tests |
+| Frontend build | PASS: 2.28s | `npm run build`; existing >500kB JavaScript chunk warning remains |
+| Dependency audit | PASS: zero vulnerabilities | `npm audit --json`; no dependency or lockfile changes |
+| Rendered contrast | PASS: 200 samples across 8 theme/viewport combinations | Light minimum 5.77:1; dark minimum 7.10:1. Exact foreground/background samples in `contrast-*.json`; sampled checks are not a comprehensive accessibility certification |
+| Local artwork | PASS | All five WebPs decode; selected day/night hero assets load; both cutouts retain >20% fully transparent pixels |
+| Reflow, focus, reduced motion | PASS | No overflow at 1440/1280/1024/390; existing nav test covers 320–1440 and CSS zoom surrogate; expanded links remain inside the sidebar; menu inert/Escape, skip link and 3px sidebar focus preserved |
+| Diff/scope | PASS | Whitespace clean; no backend, Service Desk, deployment, workflow, feature configuration or access-hook changes |
+| Lint / static types / coverage | NOT CONFIGURED / NOT RUN | No lint/type-check scripts or coverage tooling configured; no percentage claimed |
+| Owner visual approval | PENDING | Generated branch art and monogram are provisional; PR remains draft |
 
-`verification-summary.json` records final browser statistics and viewport contrast minima. Raw browser results remain locally available as `browser-results.json`; only compact review evidence is committed.
+`verification-summary.json` records the final browser statistics and contrast minima. Ignored `browser-results.json` is available locally. The existing jsdom canvas-not-implemented warning appeared during the passing unit suite; no dependency was added to suppress it.
 
-## What was preserved
+The existing reflow test's two accessible-name expectations were updated from “Nexus Admin Academy home” to “Nexus Academy home” to match the requested learner branding. Focus/reflow assertions were retained. New checks assert the learner name, theme-specific art selection and transparent compositing. No unrelated test was weakened. A new sidebar-boundary assertion caught the shared floating-menu width clipping the expanded sidebar; the scoped width override fixes it. One subsequent run encountered loading timeouts while host memory/swap was pressured (807 MiB available, swap full); no production process was touched, and the final suite was rerun unchanged after available memory recovered.
 
-- `buildContinueTarget` and `buildTodayModel` are unchanged. V2 `continue.route`, availability, status and estimate, plus legacy `next_activity.destination_route`, still determine the next task. Browser checks assert exact supplied paths, one primary action, successful lesson opening and browser return.
-- V2 access remains controlled by `useV2Access` and the backend cohort response. Legacy has exactly three destinations. Fixture V2 denial and admin redirect are exercised; no route, access flag, or authorization implementation was changed.
-- Rank/XP/streak come only from existing stats fields. Zero is displayed honestly; missing/invalid values are hidden. Lesson and Quick Check counts use existing progress fields; server stage mastery remains separate.
-- Mentor pending/correction states keep their existing model and vocabulary. Empty mentor panels are suppressed; real follow-ups remain visible.
-- Theme uses the existing persisted `theme` preference and system fallback. No remote fonts, images, analytics configuration, or integration was added.
-- Search implementation, Service Desk anchor/document navigation, training destinations and return routes remain unchanged. The account menu now closes when a link/back navigation starts, avoiding a delayed lazy-route commit closing a newly opened menu; the unchanged pilot/logout browser test covers that regression.
+## Preserved behavior and safety
 
-## Isolation and honest test boundaries
+`buildContinueTarget` and `buildTodayModel` are unchanged. Browser checks verify the exact server continuation route, one primary action, real lesson rendering and browser back. Legacy keeps exactly three destinations; backend cohort denial and admin redirect remain enforced. Counts, estimates, XP, rank and streak still come from existing APIs, with missing values hidden and motivation separate from mastery. Waiting, correction, loading, retry and empty states retain their semantics.
 
-All source edits, npm installation, build output, screenshots and logs are confined to the development worktree or disposable `/tmp/nexus-academy-phase1-baseline`. Test servers bind only `127.0.0.1:5819` (development frontend), `:5820` (synthetic HTTP API), and optionally `:5818` (baseline frontend). Existing port 5173/5174/8000 services were not used. Playwright owns and stops its own fixture services.
+Tests use disposable frontend servers on loopback `5819` and synthetic HTTP API `5820`; Playwright owns and stops them. No backend code, database, real credentials, env files or production process was used. Fixture V2 flags affect only the disposable frontend process. Synthetic unsigned fixture tokens cannot authenticate to Nexus. External requests are blocked in Phase 1 browser tests.
 
-The fixture API contains synthetic accounts and unsigned fixture tokens that cannot authenticate to Nexus. It imports no backend code, opens no database, reads no env/secrets, and calls no other service. Browser configuration sets only disposable-process API/build variables and disables Sentry; production flags and env files remain untouched. New browser tests explicitly reject network requests outside fixture origins.
+The production checkout remains detached at `663d623`, with its pre-existing modified `tasks/loop-log.md` and untracked package ZIP untouched. All implementation, screenshots, build output, review documentation and required log updates are confined to the isolated worktree. No merge, deploy, migration, grading, curriculum import, service activation or Phase 2 work occurred.
 
-The original production checkout still has its pre-existing modified `tasks/loop-log.md` and untracked package archive. Neither was edited. Its detached HEAD remains the original commit. The required completion entry is written **in the worktree**. Diff checks confirm no changes to `backend/`, `service-desk-app/`, `deploy/`, `.github/`, `features.js`, or `useV2Access.js`.
+These are frontend/API-contract checks using synthetic data. No live backend grading, real Service Desk runtime or admin mutation test is claimed. The retained pilot test's Service Desk responses come from clearly marked fixtures. Admin auth/role unit tests pass; browser admin login/reflow is outside this fixture scope.
 
-These are frontend/API-contract tests with synthetic responses. **No live backend grading, database writes, curriculum publication, or real Service Desk runtime test is claimed.** The unchanged pilot shell test's Service Desk health/contract requests are satisfied by clearly marked fixture responses; they are not evidence of a running Service Desk application. Admin browser login/reflow is not run; existing frontend auth/role tests pass and admin styling/data code is unchanged. Font/contrast QA covers the available system fonts and artwork-free compositing, not future delivered assets.
+## Remaining gaps
 
-An earlier concurrent full-suite run failed with worker-start timeouts and a Chromium page crash while host memory/swap was pressured. Final verification was rerun sequentially with one worker: 228 unit tests and 16 browser tests all pass. Before captures passed separately in the earlier comparison run. No unrelated test was weakened; the one changed original Today assertion now requires the intentionally hidden empty mentor panel.
+No requested artwork slot is empty. Owner approval is still needed for visual fidelity and the provisional art/monogram. System fonts remain rather than a supplied standalone brand typeface. Reference-only fictional schedules, achievements and extra navigation were not fabricated. Other screen-specific artwork and redesigns remain outside Phase 1. The existing build chunk warning is unchanged.
 
 ## Reproduce safely
 
-From an isolated checkout, install with `npm ci --ignore-scripts --no-audit --no-fund` in `frontend/`. Use one worker and run suites sequentially:
+In an isolated checkout, install frontend dependencies with `npm ci --ignore-scripts --no-audit --no-fund`. Run sequentially with one worker:
 
 ```sh
 npm test -- --maxWorkers=1
@@ -54,16 +60,54 @@ npm audit
 npx playwright test --config playwright.phase1.config.js
 ```
 
-Do not run these commands in production. No real account credentials are required. Chromium must be available to Playwright. To regenerate before comparisons, extract only `frontend/` from the base commit into disposable space, provide its dependencies, and pass `NEXUS_PHASE1_BASELINE_DIR=/path/to/disposable/extraction` to the same browser command. The baseline server must not be a production path.
+Chromium must be installed for Playwright. No real credentials are required. The `pr64-before-*.png` files are immutable historical evidence from `536fb8c`; final browser runs regenerate only the corrected captures. Earlier `before-*.png` files from original main remain separate.
 
-## Owner review / next slice
+## Exact files changed in this correction
 
-Keep this PR draft and undeployed. Supply cleared original day/night castle scenes, faceless protagonist, shadow-army silhouettes, and the original monogram before claiming the visual direction is fully realized. Review the same-viewport gallery and navigation first. Following explicit owner approval, Phase 2 should be limited to Learning Path and lesson UI; no Phase 2 work is included here.
+Relative to `536fb8c` (the rejected draft PR state):
 
-## Changed files
-
-- Learner UI: `frontend/src/App.jsx`, `frontend/src/pages/StudentHome.jsx`, `frontend/src/styles.css`, `frontend/src/academy.css`, `frontend/src/components/ui/AcademyScene.jsx`.
-- Focused unit tests: `frontend/src/pages/StudentHome.test.jsx`, `frontend/src/hooks/useDarkMode.test.jsx`.
-- Disposable browser QA: `frontend/playwright.phase1.config.js`, `frontend/tests/phase1/academy.spec.js`, `api-server.mjs`, `fixtures.mjs`, `contrast.mjs`.
-- Review evidence: `docs/design/phase1-artwork.md`; this gallery's README, verification report, compact summary, eight contrast JSON files and seventeen actual PNG captures.
-- Safety/logging: `.gitignore`, `tasks/loop-log.md`.
+```text
+docs/design/phase1-artwork.md
+docs/visual-qa/academy-phase1/README.md
+docs/visual-qa/academy-phase1/VERIFICATION.md
+docs/visual-qa/academy-phase1/contrast-dark-1024.json
+docs/visual-qa/academy-phase1/contrast-dark-1280.json
+docs/visual-qa/academy-phase1/contrast-dark-1440.json
+docs/visual-qa/academy-phase1/contrast-dark-390.json
+docs/visual-qa/academy-phase1/contrast-light-1024.json
+docs/visual-qa/academy-phase1/contrast-light-1280.json
+docs/visual-qa/academy-phase1/contrast-light-1440.json
+docs/visual-qa/academy-phase1/contrast-light-390.json
+docs/visual-qa/academy-phase1/legacy-light-1440.png
+docs/visual-qa/academy-phase1/mobile-menu-dark.png
+docs/visual-qa/academy-phase1/mobile-menu-light.png
+docs/visual-qa/academy-phase1/pr64-before-dark-1440.png
+docs/visual-qa/academy-phase1/pr64-before-light-1440.png
+docs/visual-qa/academy-phase1/sidebar-expanded-dark.png
+docs/visual-qa/academy-phase1/sidebar-expanded-light.png
+docs/visual-qa/academy-phase1/sidebar-focus-dark.png
+docs/visual-qa/academy-phase1/sidebar-focus-light.png
+docs/visual-qa/academy-phase1/today-dark-1024.png
+docs/visual-qa/academy-phase1/today-dark-1280.png
+docs/visual-qa/academy-phase1/today-dark-1440.png
+docs/visual-qa/academy-phase1/today-dark-390.png
+docs/visual-qa/academy-phase1/today-light-1024.png
+docs/visual-qa/academy-phase1/today-light-1280.png
+docs/visual-qa/academy-phase1/today-light-1440.png
+docs/visual-qa/academy-phase1/today-light-390.png
+docs/visual-qa/academy-phase1/verification-summary.json
+frontend/index.html
+frontend/public/academy/ambient-mist.webp
+frontend/public/academy/castle-day.webp
+frontend/public/academy/castle-night.webp
+frontend/public/academy/hooded-wanderer.webp
+frontend/public/academy/nexus-mark.svg
+frontend/public/academy/shadow-sentinels.webp
+frontend/src/App.jsx
+frontend/src/academy.css
+frontend/src/components/ui/AcademyScene.jsx
+frontend/src/pages/LoginPage.jsx
+frontend/tests/e2e/global-nav-reflow.spec.js
+frontend/tests/phase1/academy.spec.js
+tasks/loop-log.md
+```

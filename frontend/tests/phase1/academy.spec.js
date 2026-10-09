@@ -17,6 +17,17 @@ async function signIn(page, cohort = 'v2', action = true, origin = '') {
 async function noOverflow(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 }
+async function artworkReady(page) {
+  return page.evaluate(async () => {
+    const layers = [...document.querySelectorAll('.academy-scene-hero .academy-art-slot')];
+    return Promise.all(layers.map(async (layer) => {
+      const url = getComputedStyle(layer).backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
+      if (!url) throw new Error('Missing artwork: ' + layer.dataset.artSlot);
+      const image = new Image(); image.src = url; await image.decode();
+      return { slot: layer.dataset.artSlot, url, width: image.naturalWidth };
+    }));
+  });
+}
 test.beforeEach(async ({ context }) => {
   await context.route('**/*', (route) => {
     const url = new URL(route.request().url());
@@ -24,12 +35,37 @@ test.beforeEach(async ({ context }) => {
     return route.abort('blockedbyclient');
   });
 });
+test('local artwork decodes and character layers retain transparency', async ({ page }) => {
+  await page.goto('/login');
+  const decoded = await page.evaluate(async () => Promise.all(
+    ['castle-day', 'castle-night', 'hooded-wanderer', 'shadow-sentinels', 'ambient-mist'].map(async (name) => {
+      const image = new Image(); image.src = `/academy/${name}.webp`; await image.decode();
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+      const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+      const pixels = context.getImageData(0, 0, image.width, image.height).data;
+      let transparent = 0;
+      for (let i = 3; i < pixels.length; i += 4) if (pixels[i] === 0) transparent++;
+      return { name, width: image.width, transparent: transparent / (image.width * image.height) };
+    })
+  ));
+  for (const asset of decoded) {
+    expect(asset.width).toBeGreaterThanOrEqual(1024);
+    if (['hooded-wanderer', 'shadow-sentinels'].includes(asset.name)) expect(asset.transparent).toBeGreaterThan(.2);
+    else expect(asset.transparent).toBe(0);
+  }
+});
 for (const theme of ['light', 'dark']) {
   for (const width of [1440, 1280, 1024, 390]) {
     test(`Today ${theme} ${width}: server route, one action, responsive shell`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.addInitScript((mode) => localStorage.setItem('theme', mode), theme);
       await signIn(page);
+      await expect(page.getByRole('link', { name: 'Nexus Academy home', exact: true })).toBeVisible();
+      await expect(page.locator('.app-brand')).not.toContainText('Admin Academy');
+      const artwork = await artworkReady(page);
+      expect(artwork).toHaveLength(3);
+      expect(artwork.find((layer) => layer.slot === 'castle').url).toContain(`castle-${theme === 'dark' ? 'night' : 'day'}.webp`);
+      for (const layer of artwork) expect(layer.width).toBeGreaterThanOrEqual(1024);
       await expect(page.locator('.today-primary-action')).toHaveAttribute('href', fixture.continuation.route);
       await expect(page.locator('.today-page .btn-primary')).toHaveCount(1);
       await expect(page.getByRole('progressbar', { name: 'Lessons completed' })).toHaveAttribute('value', '2');
@@ -63,6 +99,11 @@ for (const theme of ['light', 'dark']) {
       if (width === 1440) {
         await nav.getByRole('button', { name: 'Extra Practice' }).click();
         await expect(nav.getByRole('link', { name: 'CLI Labs', exact: true })).toBeVisible();
+        const sidebar = await page.locator('.academy-sidebar').boundingBox();
+        for (const link of await nav.getByRole('link').all()) {
+          const box = await link.boundingBox();
+          expect(box.x + box.width, 'Expanded navigation stays inside sidebar').toBeLessThanOrEqual(sidebar.x + sidebar.width - 8);
+        }
         await page.screenshot({ path: `${gallery}/sidebar-expanded-${theme}.png` });
         await page.keyboard.press('Escape');
         await expect(nav.getByRole('button', { name: 'Extra Practice' })).toHaveAttribute('aria-expanded', 'false');

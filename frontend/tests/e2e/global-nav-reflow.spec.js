@@ -90,7 +90,7 @@ test('CSS zoom surrogate collapses the learner header and restores focus when it
   await toggle.click();
   await page.evaluate(() => { document.body.style.zoom = '1'; });
   await expect(page.locator('#app-mobile-menu')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Nexus Admin Academy home' })).toBeFocused();
+  await expect(page.getByRole('link', { name: 'Nexus Academy home' })).toBeFocused();
   await expect(page.getByRole('navigation', { name: 'Primary navigation', exact: true })).toBeVisible();
 
   await page.evaluate(() => { document.body.style.zoom = '2'; });
@@ -98,7 +98,7 @@ test('CSS zoom surrogate collapses the learner header and restores focus when it
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await toggle.focus();
   await page.evaluate(() => { document.body.style.zoom = '1'; });
-  await expect(page.getByRole('link', { name: 'Nexus Admin Academy home' })).toBeFocused();
+  await expect(page.getByRole('link', { name: 'Nexus Academy home' })).toBeFocused();
 });
 
 test('admin header keeps its compact navigation and role boundary at reflow widths', async ({ page }) => {

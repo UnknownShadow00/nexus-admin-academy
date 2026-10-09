@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="nexus" x1="4" y1="44" x2="44" y2="4" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563eb"/><stop offset=".5" stop-color="#8b5cf6"/><stop offset="1" stop-color="#c4b5fd"/>
+    </linearGradient>
+  </defs>
+  <path d="M5 7 15 13V41L5 35V7ZM33 7 43 13V41L33 35V7Z" fill="url(#nexus)"/>
+  <path d="M5 7H16L43 41H32L5 7Z" fill="url(#nexus)"/>
+  <path d="m15 20 18 22v-7L15 13v7Z" fill="#312e81" fill-opacity=".45"/>
+</svg>

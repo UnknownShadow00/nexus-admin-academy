@@ -1,5 +1,5 @@
-// Reserved composition slots. Approved standalone artwork was not supplied.
-// CSS custom properties accept local cleared assets; no reference-board crops.
+// Original branch artwork; provenance and usage are in docs/design/phase1-artwork.md.
+// Decorative layers stay outside the accessibility tree and never intercept input.
 export default function AcademyScene({ variant = "hero" }) {
   return <div className={`academy-scene academy-scene-${variant}`} aria-hidden="true">
     <div className="academy-scene-sky" />

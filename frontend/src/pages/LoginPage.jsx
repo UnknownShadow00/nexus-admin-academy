@@ -78,7 +78,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-10 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-300/30 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30">
-        <h1 className="text-center text-3xl font-semibold text-slate-950 dark:text-white">Nexus Admin Academy</h1>
+        <h1 className="text-center text-3xl font-semibold text-slate-950 dark:text-white">Nexus Academy</h1>
 
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <label className="block">

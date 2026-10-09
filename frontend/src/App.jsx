@@ -388,9 +388,9 @@ export default function App() {
         {!isAdminRoute ? <a className="academy-skip-link" href="#app-main">Skip to content</a> : null}
         <header ref={headerRef} className={`app-header${isAdminRoute ? " app-header-admin" : " app-header-academy"}`}>
           <div className="app-header-inner">
-            <Link ref={brandLink} className="app-brand" to={isAdminRoute ? "/admin" : "/"} aria-label="Nexus Admin Academy home">
-              <span className="app-brand-mark" aria-hidden="true">{isAdminRoute ? "N" : <img src="/favicon.svg" alt="" width="34" height="34" />}</span>
-              <span><span className="app-brand-title">Nexus</span><span className="app-brand-subtitle">Admin Academy</span></span>
+            <Link ref={brandLink} className="app-brand" to={isAdminRoute ? "/admin" : "/"} aria-label={isAdminRoute ? "Nexus Admin Academy home" : "Nexus Academy home"}>
+              <span className="app-brand-mark" aria-hidden="true">{isAdminRoute ? "N" : <img src="/academy/nexus-mark.svg" alt="" width="34" height="34" />}</span>
+              <span><span className="app-brand-title">Nexus</span><span className="app-brand-subtitle">{isAdminRoute ? "Admin Academy" : "Academy"}</span></span>
             </Link>
             {isAdminRoute ? <AppNav items={navItems} isAdminRoute /> : <p className="academy-header-context">Learn <span aria-hidden="true">/</span> {navItems.find((item) => isNavItemActive(item, location))?.label || "Academy"}</p>}
             <div className="app-toolbar">

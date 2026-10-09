@@ -23,13 +23,13 @@
       59
     ],
     "background": [
-      248,
-      250,
-      252
+      244,
+      247,
+      255
     ],
-    "ratio": 13.98,
-    "x": 310,
-    "y": 303.859375
+    "ratio": 13.65,
+    "x": 302,
+    "y": 252.609375
   },
   {
     "selector": ".today-context",
@@ -39,13 +39,13 @@
       105
     ],
     "background": [
-      247,
-      249,
-      252
+      243,
+      246,
+      254
     ],
-    "ratio": 7.18,
-    "x": 310,
-    "y": 350.328125
+    "ratio": 7.01,
+    "x": 302,
+    "y": 298.21875
   },
   {
     "selector": ".today-primary .type-label",
@@ -55,13 +55,13 @@
       177
     ],
     "background": [
-      248,
-      250,
-      252
+      244,
+      247,
+      255
     ],
-    "ratio": 8.09,
-    "x": 310,
-    "y": 260.875
+    "ratio": 7.89,
+    "x": 302,
+    "y": 210.484375
   },
   {
     "selector": ".today-primary .type-secondary",
@@ -71,13 +71,13 @@
       105
     ],
     "background": [
-      248,
-      250,
-      252
+      243,
+      246,
+      255
     ],
-    "ratio": 7.24,
-    "x": 310,
-    "y": 436.265625
+    "ratio": 7.01,
+    "x": 302,
+    "y": 384.15625
   },
   {
     "selector": ".today-primary .type-meta",
@@ -87,13 +87,13 @@
       105
     ],
     "background": [
-      248,
-      250,
-      252
+      244,
+      247,
+      255
     ],
-    "ratio": 7.24,
-    "x": 310,
-    "y": 540.65625
+    "ratio": 7.07,
+    "x": 302,
+    "y": 488.546875
   },
   {
     "selector": ".today-primary-action",
@@ -108,8 +108,8 @@
       217
     ],
     "ratio": 7.1,
-    "x": 409.3984375,
-    "y": 475.921875
+    "x": 401.3984375,
+    "y": 423.8125
   },
   {
     "selector": ".today-primary .status-tone",
@@ -124,8 +124,8 @@
       254
     ],
     "ratio": 7.15,
-    "x": 372.4375,
-    "y": 381.609375
+    "x": 364.4375,
+    "y": 329.5
   },
   {
     "selector": ".today-record-item .type-label",
@@ -141,7 +141,7 @@
     ],
     "ratio": 6.28,
     "x": 311,
-    "y": 892.625
+    "y": 830.921875
   },
   {
     "selector": ".today-record-item .type-label",
@@ -157,7 +157,7 @@
     ],
     "ratio": 6.28,
     "x": 675.65625,
-    "y": 892.625
+    "y": 830.921875
   },
   {
     "selector": ".today-record-item .type-label",
@@ -173,7 +173,7 @@
     ],
     "ratio": 6.28,
     "x": 1040.328125,
-    "y": 892.625
+    "y": 830.921875
   },
   {
     "selector": ".today-motivation-item .type-meta",
@@ -184,28 +184,12 @@
     ],
     "background": [
       248,
-      247,
+      246,
       255
     ],
-    "ratio": 5.9,
-    "x": 349.1875,
-    "y": 650.515625
-  },
-  {
-    "selector": ".today-motivation-item .type-meta",
-    "foreground": [
-      82,
-      97,
-      121
-    ],
-    "background": [
-      249,
-      247,
-      255
-    ],
-    "ratio": 5.91,
-    "x": 730.515625,
-    "y": 650.515625
+    "ratio": 5.87,
+    "x": 348.390625,
+    "y": 589.609375
   },
   {
     "selector": ".today-motivation-item .type-meta",
@@ -216,12 +200,28 @@
     ],
     "background": [
       248,
-      247,
+      246,
       255
     ],
-    "ratio": 5.9,
-    "x": 1111.84375,
-    "y": 650.515625
+    "ratio": 5.87,
+    "x": 729.71875,
+    "y": 589.609375
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      248,
+      246,
+      255
+    ],
+    "ratio": 5.87,
+    "x": 1111.046875,
+    "y": 589.609375
   },
   {
     "selector": ".today-record > .type-meta",
@@ -231,13 +231,13 @@
       121
     ],
     "background": [
-      247,
       246,
+      244,
       255
     ],
-    "ratio": 5.85,
+    "ratio": 5.77,
     "x": 294,
-    "y": 1010.921875
+    "y": 949.21875
   },
   {
     "selector": ".today-bottom-line",
@@ -253,7 +253,7 @@
     ],
     "ratio": 6,
     "x": 269,
-    "y": 1104.4609375
+    "y": 1042.7578125
   },
   {
     "selector": ".today-bottom-line",
@@ -263,13 +263,13 @@
       121
     ],
     "background": [
-      248,
-      250,
+      249,
+      251,
       252
     ],
-    "ratio": 6,
+    "ratio": 6.05,
     "x": 269,
-    "y": 1134.0703125
+    "y": 1072.3671875
   },
   {
     "selector": ".today-bottom-line a",
@@ -285,7 +285,7 @@
     ],
     "ratio": 8.09,
     "x": 459.890625,
-    "y": 1103.65625
+    "y": 1041.953125
   },
   {
     "selector": ".today-bottom-line a",
@@ -295,13 +295,13 @@
       177
     ],
     "background": [
-      248,
-      250,
-      252
+      249,
+      251,
+      253
     ],
-    "ratio": 8.09,
+    "ratio": 8.16,
     "x": 422.71875,
-    "y": 1133.265625
+    "y": 1071.5625
   },
   {
     "selector": ".academy-sidebar .app-nav-link",
@@ -313,9 +313,9 @@
     "background": [
       89,
       47,
-      209
+      210
     ],
-    "ratio": 7.63,
+    "ratio": 7.6,
     "x": 115.5,
     "y": 127.59375
   },
@@ -327,13 +327,13 @@
       105
     ],
     "background": [
-      250,
-      248,
+      244,
+      240,
       253
     ],
-    "ratio": 7.18,
+    "ratio": 6.76,
     "x": 115.5,
-    "y": 181.1875
+    "y": 185.15625
   },
   {
     "selector": ".academy-sidebar .app-nav-link",
@@ -343,13 +343,13 @@
       105
     ],
     "background": [
-      255,
-      255,
+      250,
+      248,
       255
     ],
-    "ratio": 7.58,
+    "ratio": 7.19,
     "x": 115.5,
-    "y": 234.78125
+    "y": 240.71875
   },
   {
     "selector": ".academy-sidebar .app-nav-link",
@@ -359,13 +359,13 @@
       105
     ],
     "background": [
-      255,
-      255,
+      250,
+      249,
       255
     ],
-    "ratio": 7.58,
+    "ratio": 7.24,
     "x": 115.5,
-    "y": 288.375
+    "y": 296.28125
   },
   {
     "selector": ".academy-sidebar .app-nav-link",
@@ -375,13 +375,13 @@
       105
     ],
     "background": [
-      255,
-      255,
+      251,
+      250,
       255
     ],
-    "ratio": 7.58,
+    "ratio": 7.3,
     "x": 115.5,
-    "y": 341.96875
+    "y": 351.84375
   },
   {
     "selector": ".academy-sidebar-footer span",
@@ -391,11 +391,11 @@
       121
     ],
     "background": [
-      255,
-      255,
+      252,
+      253,
       255
     ],
-    "ratio": 6.28,
+    "ratio": 6.17,
     "x": 24.1875,
     "y": 854.1953125
   },
@@ -407,11 +407,11 @@
       121
     ],
     "background": [
-      255,
-      255,
+      251,
+      253,
       255
     ],
-    "ratio": 6.28,
+    "ratio": 6.16,
     "x": 24.1875,
     "y": 876.1953125
   }

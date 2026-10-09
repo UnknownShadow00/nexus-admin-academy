@@ -23,13 +23,13 @@
       59
     ],
     "background": [
-      247,
-      249,
-      252
+      255,
+      255,
+      255
     ],
-    "ratio": 13.87,
+    "ratio": 14.63,
     "x": 38,
-    "y": 308.375
+    "y": 476.375
   },
   {
     "selector": ".today-context",
@@ -39,13 +39,13 @@
       105
     ],
     "background": [
-      248,
-      250,
-      252
+      255,
+      255,
+      255
     ],
-    "ratio": 7.24,
+    "ratio": 7.58,
     "x": 38,
-    "y": 379.078125
+    "y": 547.078125
   },
   {
     "selector": ".today-primary .type-label",
@@ -55,13 +55,13 @@
       177
     ],
     "background": [
-      247,
-      249,
-      252
+      255,
+      255,
+      255
     ],
-    "ratio": 8.02,
+    "ratio": 8.46,
     "x": 38,
-    "y": 252.4375
+    "y": 420.4375
   },
   {
     "selector": ".today-primary .type-secondary",
@@ -71,13 +71,13 @@
       105
     ],
     "background": [
-      247,
-      249,
-      252
+      255,
+      255,
+      255
     ],
-    "ratio": 7.18,
+    "ratio": 7.58,
     "x": 38,
-    "y": 476.296875
+    "y": 644.296875
   },
   {
     "selector": ".today-primary .type-meta",
@@ -87,13 +87,13 @@
       105
     ],
     "background": [
-      247,
-      249,
-      252
+      255,
+      255,
+      255
     ],
-    "ratio": 7.18,
+    "ratio": 7.58,
     "x": 38,
-    "y": 580.6875
+    "y": 748.6875
   },
   {
     "selector": ".today-primary-action",
@@ -103,13 +103,13 @@
       255
     ],
     "background": [
-      92,
-      34,
-      185
+      109,
+      40,
+      217
     ],
-    "ratio": 8.81,
+    "ratio": 7.1,
     "x": 195,
-    "y": 515.953125
+    "y": 683.953125
   },
   {
     "selector": ".today-primary .status-tone",
@@ -125,7 +125,7 @@
     ],
     "ratio": 7.15,
     "x": 100.4375,
-    "y": 421.640625
+    "y": 589.640625
   },
   {
     "selector": ".today-record-item .type-label",
@@ -141,7 +141,7 @@
     ],
     "ratio": 6.28,
     "x": 55,
-    "y": 1166.484375
+    "y": 1329.703125
   },
   {
     "selector": ".today-record-item .type-label",
@@ -157,7 +157,7 @@
     ],
     "ratio": 6.28,
     "x": 217,
-    "y": 1166.484375
+    "y": 1329.703125
   },
   {
     "selector": ".today-record-item .type-label",
@@ -173,39 +173,7 @@
     ],
     "ratio": 6.28,
     "x": 55,
-    "y": 1316.4375
-  },
-  {
-    "selector": ".today-motivation-item .type-meta",
-    "foreground": [
-      82,
-      97,
-      121
-    ],
-    "background": [
-      249,
-      247,
-      255
-    ],
-    "ratio": 5.91,
-    "x": 93.1875,
-    "y": 674.546875
-  },
-  {
-    "selector": ".today-motivation-item .type-meta",
-    "foreground": [
-      82,
-      97,
-      121
-    ],
-    "background": [
-      249,
-      247,
-      255
-    ],
-    "ratio": 5.91,
-    "x": 93.1875,
-    "y": 775.171875
+    "y": 1479.65625
   },
   {
     "selector": ".today-motivation-item .type-meta",
@@ -220,8 +188,40 @@
       255
     ],
     "ratio": 6.28,
-    "x": 93.1875,
-    "y": 875.796875
+    "x": 92.390625,
+    "y": 841.75
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      248,
+      246,
+      255
+    ],
+    "ratio": 5.87,
+    "x": 92.390625,
+    "y": 940.78125
+  },
+  {
+    "selector": ".today-motivation-item .type-meta",
+    "foreground": [
+      82,
+      97,
+      121
+    ],
+    "background": [
+      248,
+      246,
+      255
+    ],
+    "ratio": 5.87,
+    "x": 92.390625,
+    "y": 1039.8125
   },
   {
     "selector": ".today-record > .type-meta",
@@ -232,12 +232,12 @@
     ],
     "background": [
       252,
-      252,
+      251,
       255
     ],
-    "ratio": 6.13,
+    "ratio": 6.09,
     "x": 38,
-    "y": 1449.234375
+    "y": 1612.453125
   },
   {
     "selector": ".today-bottom-line",
@@ -253,7 +253,7 @@
     ],
     "ratio": 6,
     "x": 13,
-    "y": 1560.2421875
+    "y": 1723.4609375
   },
   {
     "selector": ".today-bottom-line",
@@ -269,7 +269,7 @@
     ],
     "ratio": 6,
     "x": 13,
-    "y": 1589.8515625
+    "y": 1753.0703125
   },
   {
     "selector": ".today-bottom-line a",
@@ -285,7 +285,7 @@
     ],
     "ratio": 8.09,
     "x": 203.890625,
-    "y": 1559.4375
+    "y": 1722.65625
   },
   {
     "selector": ".today-bottom-line a",
@@ -295,13 +295,13 @@
       177
     ],
     "background": [
-      248,
-      250,
-      252
+      249,
+      251,
+      253
     ],
-    "ratio": 8.09,
+    "ratio": 8.16,
     "x": 166.71875,
-    "y": 1589.046875
+    "y": 1752.265625
   },
   {
     "selector": ".app-bottom-nav-link",
