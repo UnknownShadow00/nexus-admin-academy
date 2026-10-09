@@ -132,6 +132,18 @@ describe("Today next action", () => {
     expect(buildTodayModel(null, training).mode).toBe("learning");
   });
 
+  it("shows the current legacy module with its real next lesson and destination", async () => {
+    api.getTrainingDashboard.mockResolvedValue({ data: {
+      current_stage: { title: "Support foundations" },
+      current_module: { title: "Support Workflow Essentials", stable_id: "module.endpoint.support_workflow", route: "/training/module/module.endpoint.support_workflow", required_complete: 0, required_total: 8, completion_percent: 0 },
+      next_activity: { title: "Anatomy of a Good Ticket", destination_route: "/lessons/17", activity_label: "Lesson" },
+    } });
+    show(null);
+    expect(await screen.findByText("Support Workflow Essentials")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Continue Training" })).toHaveAttribute("href", "/lessons/17");
+  });
+
   it("does not call completed legacy training a mastered stage", async () => {
     api.getTrainingDashboard.mockResolvedValue({ data: { current_module: { title: "Nexus Orientation" }, training_complete: true } });
     show(null);

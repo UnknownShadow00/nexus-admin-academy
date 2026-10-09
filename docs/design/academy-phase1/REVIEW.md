@@ -46,7 +46,7 @@ Seven unique runtime assets total **4,804,584 bytes (4.58 MiB)**. Day/night pano
 
 | Check | Result / coverage |
 | --- | --- |
-| Full frontend Vitest suite | **229 passed**, 39 files. Includes existing Today mentor/continuation/completion cases, auth guards, navigation and V2 enrollment, plus six new evidence-mapping cases. |
+| Full frontend Vitest suite | **230 passed**, 39 files. Includes existing Today mentor/continuation/completion cases, auth guards, navigation and V2 enrollment, plus six new evidence-mapping cases and legacy module/lesson context coverage. |
 | Phase 1 browser suite | **13 passed**, real isolated APIs: six light/dark captures, exact data/route mapping, login/logout, cookie restoration, Continue/back, search, theme persistence, legacy/V2 boundaries, mobile menu, recovery and admin isolation. Failure cases deliberately intercept responses, then recover through the real APIs. |
 | Navigation reflow suite | **3 passed**, real isolated APIs: 320–1440 widths, actual learner destinations, menu focus trap/resize restoration, reachable compact-sidebar practice links, unchanged admin reflow. |
 | Existing learning UI browser suite | **14 passed**, intercepted API fixtures: lesson/resource viewer, all six interaction input types, ordering feedback/retry, Quick Check feedback, reduced motion and 200% equivalent CSS viewport. This is frontend regression evidence, not backend integration evidence. |

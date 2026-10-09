@@ -108,6 +108,7 @@ test("legacy enrollment keeps legacy continuation and V2 rejects a typed route",
   expect(access.student_enabled).toBe(false);
   await expect(page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "My Course", exact: true })).toHaveCount(0);
   const training = await get(page, "/api/training");
+  await expect(page.locator(".hero-stage")).toHaveText(training.current_module.title);
   await expect(page.locator("#continue-learning .continue-copy a")).toHaveAttribute("href", training.next_activity.destination_route);
   await page.locator("#continue-learning .continue-copy a").click();
   await expect(page).toHaveURL(fixture.frontend + training.next_activity.destination_route);

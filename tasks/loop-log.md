@@ -3226,3 +3226,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/components/academy/academy.css; frontend/tests/e2e/forced-password-change.spec.js; frontend/tests/e2e/my-training.spec.js; frontend/tests/e2e/phase0a-live-path.spec.js; frontend/tests/e2e/student-recovery.spec.js; docs/design/academy-phase1/REVIEW.md; tasks/loop-log.md.
 - Result: Focused frontend checks pass (18 tests), V2 build passes, npm audit reports zero vulnerabilities. Local Phase 1 validation and evidence remain as recorded above. Broader CI rerun pending after presentation assertion updates.
 - Next: Review draft PR #65 and the isolated preview. No merge, deployment, or further implementation phase authorized.
+
+## [2026-10-09 23:16 UTC] Task Completed
+- Task: Restored server-provided current-module context for legacy Today after the broader CI journey exposed its omission; retained the approved layout.
+- Files changed: frontend/src/components/academy/TodayDashboard.jsx; frontend/src/pages/StudentHome.test.jsx; frontend/tests/e2e/academy-phase1.spec.js; docs/design/academy-phase1/REVIEW.md; tasks/loop-log.md.
+- Result: PASS — 230 frontend tests, 13 Phase 1 browser checks, build and zero-vulnerability npm audit. Legacy Continue destinations remain unchanged; V2 screenshot content is unaffected. Forced-password-change CI passed; broader CI will rerun with this correction.
+- Next: Owner review of draft PR #65 and the isolated preview; report final CI status separately. No merge, deployment or next phase.
