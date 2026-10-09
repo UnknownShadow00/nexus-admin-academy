@@ -1,6 +1,6 @@
 # Nexus Academy — Phase 1 integration review
 
-Ready for owner review. Scope: the shared learner shell and Today dashboard only. No Lesson, Quiz, or Service Desk redesign.
+Draft integration PR: [#65](https://github.com/UnknownShadow00/nexus-admin-academy/pull/65). Scope: the shared learner shell and Today dashboard only. No Lesson, Quiz, or Service Desk redesign.
 
 Integration branch: `feature/nexus-academy-integration-phase1`, in `/home/nexus/worktrees/nexus-academy-integration-phase1`. Created from freshly fetched and independently verified `origin/main` at `663d623041bd0b434d0bf2724a4161b23ececb6e`; remote main was verified again before handoff. Design authority: approved prototype `76b4a1552c86266442bcff96fd6c5528dea4e47e`. PR #64 is not the design authority and remains untouched.
 
@@ -55,7 +55,7 @@ Seven unique runtime assets total **4,804,584 bytes (4.58 MiB)**. Day/night pano
 | Dependency audit / whitespace | `npm audit`: zero vulnerabilities. `git diff --check`: pass. |
 | Visual/accessibility checks | No horizontal overflow at required widths; decoded art and native hero ratios pass. Main text, secondary/muted text, links and primary button token pairs meet 4.5:1 in both themes. Keyboard focus and menu isolation checked. This is not a full WCAG certification or native browser-zoom certification. |
 
-Navigation tests were adapted from the previous horizontal header to the approved sidebar/mobile structure. The existing learning test now selects the correct-feedback status explicitly so simultaneous continuation loading does not cause a strict-locator race.
+Navigation tests were adapted from the previous horizontal header to the approved sidebar/mobile structure. Full-stack Today checks now select the approved greeting and contextual Up next heading; their authentication, progress and continuation assertions remain intact. The existing learning test now selects the correct-feedback status explicitly so simultaneous continuation loading does not cause a strict-locator race.
 
 ## Gaps and remaining limits
 
@@ -64,7 +64,7 @@ Navigation tests were adapted from the previous horizontal header to the approve
 - Theme settings uses the existing theme toggle. Search uses the existing lessons/commands API; it does not claim to search V2 content, labs or tickets.
 - The separate Service Desk application/reverse proxy is not running in this minimal preview. Its document link contract is preserved; end-to-end Service Desk handoff was not tested. No ticket UI was changed.
 - Backend integration was tested only on synthetic accounts and SQLite in isolation. No live accounts, production dataset, production cookies/TLS, production PostgreSQL, migration or deployment behavior were exercised. Mentor/terminal-stage variants are covered by unit fixtures, not a fully seeded live-course journey.
-- Some older full-stack suites still assume the former literal “Today” heading or specialized datasets. They were not represented as passing; this pass runs the focused suites listed above.
+- The broader CI full-stack suites use separate specialized synthetic datasets. Their Today presentation assertions have been updated; the final CI results are reported separately from the focused local results above.
 
 ## Isolated preview and reproduction
 
@@ -117,6 +117,10 @@ Production checkout/services/data, PR #64 and the approved prototype were not mo
 - `frontend/src/pages/StudentHome.jsx`
 - `frontend/src/pages/StudentHome.test.jsx`
 - `frontend/tests/e2e/academy-phase1.spec.js`
+- `frontend/tests/e2e/forced-password-change.spec.js`
+- `frontend/tests/e2e/my-training.spec.js`
+- `frontend/tests/e2e/phase0a-live-path.spec.js`
+- `frontend/tests/e2e/student-recovery.spec.js`
 - `frontend/tests/e2e/global-nav-reflow.spec.js`
 - `frontend/tests/e2e/learning-ui.spec.js`
 - `scripts/e2e/academy_phase1_preview.py`

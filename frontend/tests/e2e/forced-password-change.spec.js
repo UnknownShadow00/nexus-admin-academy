@@ -27,7 +27,7 @@ async function changePassword(page, password) {
   await page.getByLabel("Confirm new password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Change password" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
 }
 
 test("forced first-login rotation and admin reset preserve beginner progress", async ({ page, browser }) => {
@@ -45,7 +45,7 @@ test("forced first-login rotation and admin reset preserve beginner progress", a
   const existingPage = await existingContext.newPage();
   await login(existingPage, existingUsername, existingPassword);
   await expect(existingPage).toHaveURL(/\/$/);
-  await expect(existingPage.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  await expect(existingPage.getByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
   await expect(existingPage).not.toHaveURL(/\/change-password$/);
   await existingContext.close();
 
