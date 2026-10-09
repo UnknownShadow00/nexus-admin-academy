@@ -55,7 +55,7 @@ Seven unique runtime assets total **4,804,584 bytes (4.58 MiB)**. Day/night pano
 | Dependency audit / whitespace | `npm audit`: zero vulnerabilities. `git diff --check`: pass. |
 | Visual/accessibility checks | No horizontal overflow at required widths; decoded art and native hero ratios pass. Main text, secondary/muted text, links and primary button token pairs meet 4.5:1 in both themes. Keyboard focus and menu isolation checked. This is not a full WCAG certification or native browser-zoom certification. |
 
-Navigation tests were adapted from the previous horizontal header to the approved sidebar/mobile structure. Full-stack Today checks now select the approved greeting and contextual Up next heading; their authentication, progress and continuation assertions remain intact. The existing learning test now selects the correct-feedback status explicitly so simultaneous continuation loading does not cause a strict-locator race.
+Navigation tests were adapted from the previous horizontal header to the approved sidebar/mobile structure. Full-stack Today checks now select the approved greeting and primary continuation card (secondary Up next cards only appear when other work is available); their authentication, progress and continuation assertions remain intact. The existing learning test now selects the correct-feedback status explicitly so simultaneous continuation loading does not cause a strict-locator race.
 
 ## Gaps and remaining limits
 

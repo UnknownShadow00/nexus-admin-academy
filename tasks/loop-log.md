@@ -3222,7 +3222,7 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Next: Owner review of the draft integration PR and preview. No merge, deployment or further phase authorized; separate Service Desk handoff and PostgreSQL integration remain unverified.
 
 ## [2026-10-09 23:07 UTC] Task Completed
-- Task: Prepared Phase 1 draft integration PR #65 and aligned existing full-stack Today presentation assertions with the approved greeting; preserved multiline mentor feedback.
+- Task: Prepared Phase 1 draft integration PR #65 and aligned existing full-stack Today presentation assertions with the approved greeting and primary continuation card; preserved multiline mentor feedback.
 - Files changed: frontend/src/components/academy/academy.css; frontend/tests/e2e/forced-password-change.spec.js; frontend/tests/e2e/my-training.spec.js; frontend/tests/e2e/phase0a-live-path.spec.js; frontend/tests/e2e/student-recovery.spec.js; docs/design/academy-phase1/REVIEW.md; tasks/loop-log.md.
 - Result: Focused frontend checks pass (18 tests), V2 build passes, npm audit reports zero vulnerabilities. Local Phase 1 validation and evidence remain as recorded above. Broader CI rerun pending after presentation assertion updates.
 - Next: Review draft PR #65 and the isolated preview. No merge, deployment, or further implementation phase authorized.
