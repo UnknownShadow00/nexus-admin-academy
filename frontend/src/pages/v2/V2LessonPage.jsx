@@ -1,45 +1,82 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Link, useParams } from "react-router-dom";
-import V2Breadcrumbs from "../../components/v2/V2Breadcrumbs";
+import LessonLayout from "../../components/academy/LessonLayout";
+import V2Interaction from "../../components/v2/V2Interaction";
 import { V2Error, V2Loading } from "../../components/v2/V2PageState";
 import V2ResourceCard from "../../components/v2/V2ResourceCard";
-import V2Status, { statusLabel } from "../../components/v2/V2Status";
+import V2Status from "../../components/v2/V2Status";
 import V2NextStep from "../../components/v2/V2NextStep";
-import { completeV2Lesson, getV2Lesson } from "../../services/api";
-import PageContainer from "../../components/ui/PageContainer";
-import PageHeader from "../../components/ui/PageHeader";
+import { getCurrentStudent } from "../../hooks/useAuth";
+import { completeV2Lesson, getV2Lesson, getV2Module } from "../../services/api";
 
 const markdownComponents = {
   a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}<span className="sr-only"> (opens in a new tab)</span></a>,
   table: ({ children }) => <div className="overflow-x-auto"><table>{children}</table></div>,
 };
+const done = status => ["completed", "passed"].includes(status);
 
 export default function V2LessonPage() {
   const { moduleKey, lessonKey } = useParams();
+  return <V2LessonContent key={`${getCurrentStudent()?.id}:${moduleKey}:${lessonKey}`} moduleKey={moduleKey} lessonKey={lessonKey} />;
+}
+
+function V2LessonContent({ moduleKey, lessonKey }) {
   const [data, setData] = useState(null);
+  const [moduleData, setModuleData] = useState(null);
+  const [catalogError, setCatalogError] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const load = useCallback(() => { setError(""); return getV2Lesson(moduleKey, lessonKey, { suppressToast: true }).then((res) => setData(res.data)).catch((err) => setError(err?.response?.status === 404 ? "That lesson could not be found." : err?.userMessage || "The lesson could not be loaded.")); }, [lessonKey, moduleKey]);
-  useEffect(() => { void load(); }, [load]);
-  async function markComplete() { setBusy(true); setError(""); try { await completeV2Lesson(moduleKey, lessonKey, { suppressToast: true }); await load(); } catch (err) { setError(err?.userMessage || "We couldn't save lesson completion. Your work is still here. Try again."); } finally { setBusy(false); } }
+  const alive = useRef(false);
+  const load = useCallback(() => {
+    setError("");
+    return getV2Lesson(moduleKey, lessonKey, { suppressToast: true }).then(res => { if (alive.current) setData(res.data); }).catch(err => { if (alive.current) setError(err?.response?.status === 404 ? "That lesson could not be found." : err?.userMessage || "The lesson could not be loaded."); });
+  }, [lessonKey, moduleKey]);
+  const loadCatalog = useCallback(() => {
+    setCatalogError(false);
+    return getV2Module(moduleKey, { suppressToast: true }).then(res => { if (alive.current) setModuleData(res.data); }).catch(() => { if (alive.current) setCatalogError(true); });
+  }, [moduleKey]);
+  useEffect(() => { alive.current = true; void load(); void loadCatalog(); return () => { alive.current = false; }; }, [load, loadCatalog]);
+  async function refresh() { await Promise.all([load(), loadCatalog()]); }
+  async function markComplete() {
+    if (busy) return;
+    setBusy(true); setError("");
+    try { await completeV2Lesson(moduleKey, lessonKey, { suppressToast: true }); if (alive.current) await refresh(); }
+    catch (err) { if (alive.current) setError(err?.userMessage || "We couldn't save lesson completion. Your work is still here. Try again."); }
+    finally { if (alive.current) setBusy(false); }
+  }
   if (error && !data) return <V2Error title="Lesson unavailable" message={error} onRetry={load} moduleRoute={`/learning-v2/modules/${moduleKey}`} />;
   if (!data) return <V2Loading text="Loading lesson..." />;
   const lesson = data.lesson;
   const beginner = data.certification.version?.key === "nexus_beginner_aplus_v1";
-  const completed = ["completed", "passed"].includes(beginner ? lesson.group_status || lesson.progress.status : lesson.progress.status);
-  const lessonRoute = (key) => `/learning-v2/modules/${moduleKey}/lessons/${key}`;
-  return <PageContainer width="reading" className="space-y-8">
-    <PageHeader breadcrumb={<V2Breadcrumbs certification={data.certification} module={data.module} lesson={lesson} />} eyebrow="Lesson" title={lesson.title} description={lesson.summary} status={<V2Status status={beginner ? lesson.group_status || lesson.progress.status : lesson.progress.status} />} />
-    <section aria-labelledby="lesson-content-title" className="learning-section">
-      <p className="type-label">Learn</p><h2 id="lesson-content-title" className="learning-section-title">Work through the lesson</h2>
-      <article className="v2-markdown learning-prose"><ReactMarkdown components={markdownComponents}>{lesson.content_markdown}</ReactMarkdown></article>
+  const status = beginner ? lesson.group_status || lesson.progress.status : lesson.progress.status;
+  const completed = done(status);
+  const resources = lesson.resources || [];
+  const featured = resources.find(resource => resource.type === "video" && resource.url) || resources.find(resource => resource.url);
+  const lessonRoute = key => `/learning-v2/modules/${moduleKey}/lessons/${key}`;
+  const catalog = moduleData?.lessons?.map(item => ({ key: item.key, title: item.title, route: lessonRoute(item.key), current: item.key === lessonKey, complete: done(beginner ? item.group_status || item.progress?.status : item.progress?.status), available: item.available !== false && !item.locked, minutes: item.estimated_minutes }));
+  const steps = [
+    { id: "lesson-understand", label: "Understand" },
+    ...(resources.length ? [{ id: "lesson-resources", label: featured?.type === "video" ? "Watch the video" : "Teaching resources", complete: resources.filter(item => item.required).length > 0 && resources.filter(item => item.required).every(item => item.exposure_satisfied === true || item.watched_at || item.type !== "video" && item.opened_at) }] : []),
+    ...(data.interactions?.length ? [{ id: "lesson-practice", label: "Try it", complete: data.interactions.filter(item => item.interaction.required).length > 0 && data.interactions.filter(item => item.interaction.required).every(item => item.progress.passed) }] : []),
+    ...(lesson.quick_check ? [{ id: "lesson-checkpoint", label: "Quick Check", complete: done(lesson.quick_check.progress.status) }] : []),
+    { id: "lesson-completion", label: completed ? "Lesson done" : "Continue learning", complete: completed },
+  ];
+  return <LessonLayout title={lesson.title} summary={lesson.summary}
+    breadcrumb={<nav className="breadcrumb" aria-label="Breadcrumb"><Link to="/learning-v2">My Course</Link><span aria-hidden="true">›</span><Link to={`/learning-v2/modules/${moduleKey}`}>{data.module.title}</Link></nav>}
+    meta={<>{lesson.estimated_minutes ? <span className="small muted">About {lesson.estimated_minutes} min</span> : null}<V2Status status={status} /></>}
+    steps={steps} resources={resources.length > 0} practice={data.interactions?.length > 0} catalog={catalog} catalogTitle="Module lessons" catalogError={catalogError} retryCatalog={loadCatalog}
+    footer={<>{data.previous_lesson_key ? <Link className="btn btn-secondary" to={lessonRoute(data.previous_lesson_key)}><ArrowLeft size={16} aria-hidden="true" />Previous lesson</Link> : <Link className="btn btn-secondary" to={`/learning-v2/modules/${moduleKey}`}><ArrowLeft size={16} aria-hidden="true" />Back to module</Link>}<a className="btn btn-primary" href="#lesson-completion">Your next step<ArrowRight size={16} aria-hidden="true" /></a></>}>
+    {featured ? <div className="lesson-anchor" id="lesson-resources" tabIndex={-1}><V2ResourceCard key={featured.key} resource={featured} moduleKey={moduleKey} onChanged={refresh} lessonPoster /></div> : null}
+    <section className="card" id="lesson-understand" tabIndex={-1} aria-labelledby="lesson-content-title"><h2 id="lesson-content-title">Understand</h2>
+      {lesson.objectives?.length ? <><h3>In this lesson, you'll learn</h3><ul className="lesson-objectives">{lesson.objectives.map((objective, index) => <li key={`${objective.code}-${index}`}><span className="objective-number" aria-hidden="true">{index + 1}</span>{objective.text}{objective.code ? <small className="block muted">Objective {objective.code}</small> : null}</li>)}</ul></> : null}
+      {lesson.content_markdown ? <article className="v2-markdown lesson-prose"><ReactMarkdown components={markdownComponents}>{lesson.content_markdown}</ReactMarkdown></article> : <p className="sub">No written material is available for this lesson. Review its resources and current requirements below.</p>}
     </section>
-    {lesson.resources.length ? <section aria-labelledby="resources-title" className="learning-section space-y-4"><div><p className="type-label">Reference</p><h2 id="resources-title" className="learning-section-title">Teaching resources</h2><p className="type-meta mt-1">Opening a resource records a visit. Viewing alone does not mean you passed a check.</p></div>{lesson.resources.map((resource) => <V2ResourceCard key={resource.key} resource={resource} moduleKey={moduleKey} onChanged={load} />)}</section> : null}
-    {data.interactions?.length ? <section className="learning-section space-y-4" aria-labelledby="interactions-title"><div><p className="type-label">Try it</p><h2 className="learning-section-title" id="interactions-title">Check your understanding</h2></div><ul className="divide-y divide-[var(--nexus-border)]">{data.interactions.map(({ interaction, progress }) => <li className="flex flex-wrap items-center justify-between gap-3 py-4" key={interaction.key}><div><strong>{interaction.title}</strong><p className="type-meta mt-1">{interaction.required ? "Required" : "Optional"} · {statusLabel(progress.status)}</p></div><Link className="btn-secondary" to={`/learning-v2/modules/${moduleKey}/interactions/${interaction.key}`}>{progress.passed ? "Practice again" : "Try interaction"}</Link></li>)}</ul></section> : null}
-    {lesson.quick_check ? <section className="learning-section space-y-3" aria-labelledby="quick-check-title"><p className="type-label">Checkpoint</p><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 id="quick-check-title" className="learning-section-title">{lesson.quick_check.title}</h2><p className="type-meta mt-1">{lesson.quick_check.question_count} questions to check your understanding.</p></div>{lesson.quick_check.available === false ? <span className="type-meta">Quick Check unavailable</span> : <Link className="btn-secondary" to={`/learning-v2/modules/${moduleKey}/assessments/${lesson.quick_check.key}`}>{["completed", "passed"].includes(lesson.quick_check.progress.status) ? "Try Quick Check again" : "Start Quick Check"}</Link>}</div></section> : null}
-    {error ? <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-200" role="alert">{error}</p> : null}
-    <section className="learning-completion" aria-labelledby="lesson-next-title"><p className="type-label">Next action</p><h2 className="learning-section-title" id="lesson-next-title">{completed ? "Lesson done" : "Continue learning"}</h2>{beginner ? <div className="mt-3"><V2NextStep key={`${lesson.group_status || lesson.progress.status}-${lesson.resources.map((item) => item.status).join("-")}`} moduleKey={moduleKey} /></div> : <><p className="type-meta mt-2">Lesson completion tracks navigation; checks and practice determine mastery.</p><div className="mt-4 flex flex-wrap items-center gap-3">{completed ? (data.next_lesson_key ? <Link className="btn-primary" to={lessonRoute(data.next_lesson_key)}>Next lesson<ArrowRight size={16} aria-hidden="true" /></Link> : <Link className="btn-primary" to={`/learning-v2/modules/${moduleKey}`}>Back to module</Link>) : <button className="btn-primary" disabled={busy} onClick={markComplete} type="button">{busy ? "Saving..." : "Mark lesson complete"}</button>}{data.previous_lesson_key ? <Link className="btn-quiet" to={lessonRoute(data.previous_lesson_key)}><ArrowLeft size={16} aria-hidden="true" />Previous lesson</Link> : null}</div></>}</section>
-  </PageContainer>;
+    {resources.some(resource => resource !== featured) ? <section id={featured ? undefined : "lesson-resources"} tabIndex={-1} aria-labelledby="resources-title" className="card"><h2 id="resources-title">Teaching resources</h2><p className="small sub">Opening a resource records a visit. Viewing alone does not mean you passed a check.</p>{resources.filter(resource => resource !== featured).map(resource => <V2ResourceCard key={resource.key} resource={resource} moduleKey={moduleKey} onChanged={refresh} />)}</section> : null}
+    {data.interactions?.length ? <section className="card" id="lesson-practice" tabIndex={-1} aria-labelledby="interactions-title"><h2 id="interactions-title">Try it</h2>{data.interactions.map(({ interaction, progress }) => <div className="embedded-practice" key={interaction.key}><V2Interaction moduleKey={moduleKey} interactionKey={interaction.key} embedded onChanged={refresh} /><Link className="btn-quiet mt-3" to={`/learning-v2/modules/${moduleKey}/interactions/${interaction.key}`}>{progress.passed ? "Practice again" : "Try interaction"} on its own page<ArrowRight size={15} aria-hidden="true" /></Link></div>)}</section> : null}
+    {lesson.quick_check ? <section className="card" id="lesson-checkpoint" tabIndex={-1} aria-labelledby="quick-check-title"><div className="section-title"><h2 id="quick-check-title">{lesson.quick_check.title}</h2><V2Status status={lesson.quick_check.progress.status} /></div><p className="small sub">{lesson.quick_check.question_count} questions to check your understanding.</p>{lesson.quick_check.available === false ? <span className="small sub">Quick Check unavailable</span> : <Link className="btn btn-secondary" to={`/learning-v2/modules/${moduleKey}/assessments/${lesson.quick_check.key}`}>{done(lesson.quick_check.progress.status) ? "Try Quick Check again" : "Start Quick Check"}</Link>}</section> : null}
+    {error ? <p className="card" role="alert">{error}</p> : null}
+    <section className="card" id="lesson-completion" tabIndex={-1} aria-labelledby="lesson-next-title"><h2 id="lesson-next-title">{completed ? "Lesson done" : "Continue learning"}</h2>{beginner ? <V2NextStep key={`${status}-${resources.map(item => item.status).join("-")}-${data.interactions?.map(item => item.progress.status).join("-")}`} moduleKey={moduleKey} /> : <><p className="small sub">Lesson completion tracks navigation; checks and practice determine mastery.</p><div className="actions">{completed ? data.next_lesson_key ? <Link className="btn btn-primary" to={lessonRoute(data.next_lesson_key)}>Next lesson<ArrowRight size={16} aria-hidden="true" /></Link> : <Link className="btn btn-primary" to={`/learning-v2/modules/${moduleKey}`}>Back to module</Link> : <button className="btn btn-primary" disabled={busy} onClick={markComplete} type="button">{busy ? "Saving..." : "Mark lesson complete"}</button>}</div></>}</section>
+  </LessonLayout>;
 }

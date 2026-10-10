@@ -6,10 +6,10 @@ import QuizReviewPage from "./QuizReviewPage";
 import TrainingProgressPage from "./TrainingProgressPage";
 import OrientationPracticePanel from "../components/OrientationPracticePanel";
 import * as api from "../services/api";
-vi.mock("../services/api", () => ({ getLesson: vi.fn(), completeLesson: vi.fn(), getLessonNote: vi.fn(), saveLessonNote: vi.fn(), getOrientationProgress: vi.fn(), getWeekPlan: vi.fn(), getQuizReview: vi.fn(), getTrainingProgress: vi.fn(), getServiceDeskProgressSummary: vi.fn() }));
+vi.mock("../services/api", () => ({ getLesson: vi.fn(), completeLesson: vi.fn(), getLessonNote: vi.fn(), saveLessonNote: vi.fn(), getOrientationProgress: vi.fn(), getWeekPlan: vi.fn(), getQuizReview: vi.fn(), getTrainingProgress: vi.fn(), getServiceDeskProgressSummary: vi.fn(), getTrainingDashboard: vi.fn() }));
 vi.mock("../hooks/useAuth", () => ({ getCurrentStudent: () => ({ id: 7 }) }));
 afterEach(cleanup);
-beforeEach(() => { vi.resetAllMocks(); localStorage.clear(); api.getLessonNote.mockResolvedValue({ data: { content: "" } }); });
+beforeEach(() => { vi.resetAllMocks(); localStorage.clear(); api.getLessonNote.mockResolvedValue({ data: { content: "" } }); api.getTrainingDashboard.mockResolvedValue({ data: { current_module_activities: [] } }); });
 const lesson = { id: 1, title: "Test lesson", summary: "Read this first.", is_complete: false };
 const review = { title: "Ticket quiz", score: 1, total: 2, questions: [{ id: 1, question_text: "First question" }, { id: 2, question_text: "Second question" }], results: [{ question_id: 1, student_answer: "A", correct_answer: "A", is_correct: true, options: { A: "Ask first", B: "Guess" }, explanation: "Confirm the problem first." }, { question_id: 2, student_answer: "B", correct_answer: "A", is_correct: false, options: { A: "Document evidence", B: "Skip notes" }, explanation: "Notes help the next technician." }] };
 function mountLesson() { return render(<MemoryRouter initialEntries={["/lessons/1"]}><Routes><Route path="/lessons/:lessonId" element={<LessonPage />} /></Routes></MemoryRouter>); }
@@ -37,6 +37,15 @@ it("does not claim completion after a failed save and lets the learner retry", a
   expect(screen.queryByRole("button", { name: "Lesson complete" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Mark lesson complete" }));
   expect(await screen.findByRole("button", { name: "Lesson complete" })).toBeDisabled();
+});
+it("keeps the direct video URL and notes available when the optional lesson list fails", async () => {
+  api.getLesson.mockResolvedValue({ data: { ...lesson, video_url: "https://www.youtube.com/watch?v=uwoD5YsGACg", outcomes: ["Record observed evidence."] } });
+  api.getTrainingDashboard.mockRejectedValue(new Error("offline"));
+  mountLesson();
+  expect(await screen.findByRole("link", { name: /Watch on YouTube/ })).toHaveAttribute("href", "https://www.youtube.com/watch?v=uwoD5YsGACg");
+  expect(await screen.findByRole("button", { name: "Retry lesson list" })).toBeVisible();
+  expect(screen.getByRole("textbox", { name: "Your study notes" })).toBeVisible();
+  expect(api.completeLesson).not.toHaveBeenCalled();
 });
 it("retries an orientation checklist error instead of loading forever", async () => {
   api.getOrientationProgress.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({ data: { steps: {}, quiz_route: "/quizzes/42" } });

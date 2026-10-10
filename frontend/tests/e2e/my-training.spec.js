@@ -235,7 +235,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.goto("/training/week/0");
   await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Welcome to Nexus: Your First Week" }).getByRole("link").click();
   const orientationLessonPath = new URL(page.url()).pathname;
-  await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Mark lesson complete", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Optional notes", exact: true })).toBeVisible();
   await page.goto("/quizzes/42");
@@ -275,7 +275,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto(orientationLessonPath);
-  await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/quizzes/42");
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
@@ -464,7 +464,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(page).toHaveURL(/\/lessons\/\d+$/);
     const orientationLessonId = new URL(page.url()).pathname.split("/").pop();
     const orientationLessonPath = new URL(page.url()).pathname;
-    await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
     await expect(page.getByText("Week 0 is a quick setup so you know how Nexus works.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Two quick steps" })).toBeVisible();
     await expect(page.getByText("Week 0 guided practice")).toHaveCount(0);

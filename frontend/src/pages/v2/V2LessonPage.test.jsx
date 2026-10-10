@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({ completeV2Lesson: vi.fn(), getV2Lesson: vi.fn(), getV2Module: vi.fn(), recordV2Resource: vi.fn() }));
@@ -65,5 +65,30 @@ describe("V2LessonPage", () => {
     await waitFor(() => expect(screen.getAllByText("Opened").length).toBeGreaterThanOrEqual(2));
     expect(screen.getByRole("button", { name: "View again" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Start Quick Check" })).toBeVisible();
+  });
+  it("retains lesson content when the optional module list fails and retries that list", async () => {
+    api.getV2Module.mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ data: { lessons: [{ key: "lesson.dynamic", title: "Dynamic lesson", progress: { status: "not_started" } }] } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole("heading", { name: "Dynamic lesson" })).toBeVisible();
+    await userEvent.click(await screen.findByRole("button", { name: "Retry lesson list" }));
+    expect(await screen.findByText("Lesson 1 of 1")).toBeVisible();
+  });
+  it("keeps content and completion controls after a rejected completion request", async () => {
+    api.completeV2Lesson.mockRejectedValue({ userMessage: "Finish required practice first." });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
+    await userEvent.click(await screen.findByRole("button", { name: "Mark lesson complete" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Finish required practice first.");
+    expect(screen.getByRole("heading", { name: "Dynamic lesson" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Lesson done" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark lesson complete" })).toBeEnabled();
+  });
+  it("ignores a late lesson response after navigation to another lesson", async () => {
+    let finish;
+    api.getV2Lesson.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValueOnce({ data: { ...response.data, lesson: { ...response.data.lesson, title: "Current lesson" } } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Link to="/learning-v2/modules/module.dynamic/lessons/lesson.next">Other lesson</Link><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
+    await userEvent.click(screen.getByRole("link", { name: "Other lesson" }));
+    expect(await screen.findByRole("heading", { name: "Current lesson" })).toBeVisible();
+    finish(response);
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Dynamic lesson" })).not.toBeInTheDocument());
   });
 });
