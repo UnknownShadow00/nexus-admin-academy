@@ -98,7 +98,7 @@ export function WorkflowRail({
   return (
     <section
       aria-labelledby="workflow-rail-title"
-      className="min-w-0 border-b border-border pb-4"
+      className="sd-workflow min-w-0 border-b border-border pb-4"
       data-group-2-slot="workflow-rail"
     >
       <h2 className="sr-only" id="workflow-rail-title">

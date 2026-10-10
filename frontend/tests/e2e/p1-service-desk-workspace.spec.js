@@ -34,6 +34,7 @@ async function launch(page) {
           .getByRole("button", { name: "Open ticket", exact: true })
           .isVisible()) ||
         (await page.getByTestId("ticket-workspace").isVisible()),
+      { timeout: 30_000 },
     )
     .toBe(true);
   if (
@@ -108,6 +109,8 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
   await expect(
     page.getByText("Confirmed by your actions", { exact: true }),
   ).toBeInViewport();
+  // The approved Guided Ticket design places notes below investigation.
+  await page.getByLabel("Add a note").scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Add a note")).toBeInViewport();
   const draft =
     "Working draft: investigating printer destination before making changes.";

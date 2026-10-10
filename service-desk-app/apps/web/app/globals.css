@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@service-desk/ui/styles.css';
+@import './academy.css';
 @source '../../../packages/ui/src';
 
 @layer base {

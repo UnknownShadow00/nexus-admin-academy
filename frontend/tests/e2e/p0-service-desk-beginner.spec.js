@@ -8,6 +8,16 @@ const assessmentKey = 'assess.aplus-core1-printers-mfds.service_desk';
 const returnTo = `/learning-v2/modules/${moduleKey}`;
 const trace = JSON.parse(fs.readFileSync(new URL('../../../service-desk-app/packages/shared/src/realism-traces.test.json', import.meta.url))).INC2504;
 
+async function capturePhase4(page, selector, name) {
+  const directory = process.env.NEXUS_ACADEMY_CAPTURE;
+  if (!directory) return;
+  const toggle = page.getByRole('button', { name: 'Toggle dark mode', exact: true });
+  for (const mode of ['light', 'dark']) {
+    if ((await toggle.getAttribute('aria-pressed')) !== String(mode === 'dark')) await toggle.click();
+    await page.locator(selector).screenshot({ path: `${directory}/${name}-${mode}.png` });
+  }
+}
+
 test('P0 authenticated beginner: curriculum launcher, trusted work, note rejection and V2 credit', async ({ page }) => {
   test.setTimeout(180_000);
   const base = process.env.NEXUS_E2E_BASE_URL;
@@ -52,13 +62,15 @@ test('P0 authenticated beginner: curriculum launcher, trusted work, note rejecti
   await page.getByLabel('Terminal command').press('Enter');
   await expect(page.getByText('Confirmed by your actions', { exact: true })).toBeVisible();
   await expect(page.locator('[aria-label="Ticket workspace rail"]')).toContainText('Spooler');
+  await capturePhase4(page, '.sd-investigation-panel', 'ticket-tools');
   await page.getByRole('button', { name: 'Back to ticket INC2504', exact: true }).click();
   assertContext();
   const incomplete = '  Restarted computer and issue resolved.  ';
   await page.getByLabel('Add a note').fill(incomplete);
   await page.getByRole('button', { name: 'Add internal note', exact: true }).click();
   await expect(page.getByLabel('Add a note')).toHaveValue(incomplete);
-  await expect(page.locator('[aria-label="Ticket workspace rail"]').getByRole('alert')).toContainText('what you tested and what happened');
+  await expect(page.locator('.sd-note-panel').getByRole('alert')).toContainText('what you tested and what happened');
+  await capturePhase4(page, '.sd-note-panel', 'ticket-feedback');
   await page.getByRole('navigation', { name: 'Suggested tools' }).getByRole('button', { name: 'Remote Desktop', exact: true }).click();
   // The remote session survives returning to the ticket; reopen its desktop.
   const connect = page.getByRole('button', { name: 'Connect', exact: true });

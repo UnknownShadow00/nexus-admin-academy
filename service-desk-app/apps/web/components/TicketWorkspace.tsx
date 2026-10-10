@@ -19,7 +19,11 @@ import { TicketActionBar } from './TicketActionBar';
 import { TicketContextBar } from './TicketContextBar';
 import { TicketDebrief } from './TicketDebrief';
 import { TicketIssueDetails } from './TicketIssueDetails';
-import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
+import {
+  useSessionHydrated,
+  useSessionIdentity,
+  useTicketSession,
+} from './TicketSessionProvider';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
 import { WorkspaceTicketQueue } from './WorkspaceTicketQueue';
 import { WORKFLOW_COPY, WorkflowRail } from './WorkflowRail';
@@ -38,6 +42,11 @@ type PhonePane = 'work' | 'evidence' | 'notes';
 
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const nexusReturn = useNexusReturnTarget();
+  const identity = useSessionIdentity();
+  const learner =
+    !identity.isAdmin &&
+    !identity.isMentor &&
+    process.env.NEXT_PUBLIC_NEXUS_INTEGRATION === '1';
   const {
     assignmentByTicket,
     authoritativeGradeByTicket,
@@ -219,9 +228,29 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     />
   );
 
+  const notePanel = (
+    <TabsContent
+      className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
+      forceMount
+      value="notes"
+    >
+      <ResolutionNotePanel
+        key={ticket.id}
+        experienceMode={experienceMode}
+        characterLimit={
+          workspaceView?.documentation_target === 'remote_desktop'
+            ? 1000
+            : undefined
+        }
+        notes={ticket.notes}
+        onSubmit={(body) => submitResolutionNote(ticket.id, body)}
+      />
+    </TabsContent>
+  );
+
   if (authoritativeGrade) {
     return (
-      <div className="grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]">
+      <div className="sd-ticket-debrief grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]">
         {ticketQueue}
         <div className="min-w-0 space-y-4 sm:space-y-5">
           <TicketContextBar
@@ -243,10 +272,10 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
 
   return (
     <div
-      className="grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]"
+      className="sd-ticket-workspace grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]"
       data-testid="ticket-workspace"
     >
-      {ticketQueue}
+      {!learner ? ticketQueue : null}
       <div className="min-w-0 space-y-4">
         <TicketContextBar
           assignment={assignment}
@@ -281,95 +310,106 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
             </TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
-          <div className="grid min-w-0 gap-4 sm:block lg:grid lg:gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
-            <TabsContent
-              className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
-              forceMount
-              value="work"
-            >
-              <div className="min-w-0 space-y-4">
-                <h2 className="sr-only" ref={workHeading} tabIndex={-1}>
-                  Ticket work area
-                </h2>
-                <section
-                  aria-label="Current ticket work"
-                  className="min-w-0 border-b border-border pb-4"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Current ticket work
-                  </p>
-                  <h2 className="mt-2 text-base font-semibold leading-snug text-text">
-                    {currentStage
-                      ? WORKFLOW_COPY[currentStage.key].label
-                      : 'Ticket work'}
+          <div className="sd-ticket-layout grid min-w-0 gap-4 sm:block lg:grid lg:gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className={learner ? 'sd-ticket-main' : 'contents'}>
+              <TabsContent
+                className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
+                forceMount
+                value="work"
+              >
+                <div className="min-w-0 space-y-4">
+                  <h2 className="sr-only" ref={workHeading} tabIndex={-1}>
+                    Ticket work area
                   </h2>
-                  {currentStage && experienceMode !== 'assessment' ? (
-                    <p className="mt-1 max-w-prose text-sm leading-relaxed text-text-muted">
-                      {WORKFLOW_COPY[currentStage.key].help}
-                    </p>
-                  ) : null}
-                  <div className="mt-4 border-l-2 border-border pl-3">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                      Reported issue
-                    </h3>
-                    <p className="mt-1 max-w-prose break-words text-sm leading-relaxed text-text">
-                      {ticket.description.issue}
-                    </p>
-                  </div>
-                  {currentStage?.key === 'verify' ||
-                  currentStage?.key === 'document' ? (
-                    <button
-                      className="sd-focus-ring mt-3 min-h-11 rounded-sm border border-border px-3 py-2 text-sm font-semibold text-text sm:hidden"
-                      onClick={() =>
-                        setPhonePane(
-                          currentStage.key === 'verify' ? 'evidence' : 'notes',
-                        )
-                      }
-                      type="button"
+                  <div
+                    className={learner ? 'sd-investigation-panel' : 'contents'}
+                  >
+                    <section
+                      aria-label="Current ticket work"
+                      className="sd-ticket-investigation min-w-0 border-b border-border pb-4"
                     >
-                      {currentStage.key === 'verify'
-                        ? 'Review confirmed work'
-                        : 'Open support notes'}
-                    </button>
-                  ) : null}
-                  <details className="mt-3">
-                    <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-accent">
-                      Full report and prior checks
-                    </summary>
-                    <TicketIssueDetails description={ticket.description} />
-                  </details>
-                </section>
-                <WorkspaceToolLauncher
-                  key={ticket.id}
-                  activeToolSlug={activeToolSlug}
-                  experienceMode={experienceMode}
-                  onSelectTool={setActiveTool}
-                  ticketCategory={ticket.category}
-                  ticketId={ticket.id}
-                  toolSlugs={ticket.suggestedTools}
-                />
-                <ActiveToolPane
-                  activeTicketId={ticket.id}
-                  activeToolSlug={activeToolSlug}
-                  onSelectTool={setActiveTool}
-                  onBack={() => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    params.delete('tool');
-                    for (const key of TOOL_HINT_KEYS) params.delete(key);
-                    setActiveToolState(null);
-                    setPhonePane('work');
-                    router.replace(`${pathname}?${params.toString()}`, {
-                      scroll: false,
-                    });
-                    workHeading.current?.focus();
-                  }}
-                />
-                <TicketActionBar ticket={ticket} />
-              </div>
-            </TabsContent>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                        Current ticket work
+                      </p>
+                      <h2 className="mt-2 text-base font-semibold leading-snug text-text">
+                        {currentStage
+                          ? WORKFLOW_COPY[currentStage.key].label
+                          : 'Ticket work'}
+                      </h2>
+                      {currentStage && experienceMode !== 'assessment' ? (
+                        <p className="mt-1 max-w-prose text-sm leading-relaxed text-text-muted">
+                          {WORKFLOW_COPY[currentStage.key].help}
+                        </p>
+                      ) : null}
+                      <div className="sd-reported-issue mt-4 border-l-2 border-border pl-3">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                          Reported issue
+                        </h3>
+                        <p className="mt-1 max-w-prose break-words text-sm leading-relaxed text-text">
+                          {ticket.description.issue}
+                        </p>
+                      </div>
+                      {currentStage?.key === 'verify' ||
+                      currentStage?.key === 'document' ? (
+                        <button
+                          className="sd-focus-ring mt-3 min-h-11 rounded-sm border border-border px-3 py-2 text-sm font-semibold text-text sm:hidden"
+                          onClick={() =>
+                            setPhonePane(
+                              currentStage.key === 'verify'
+                                ? 'evidence'
+                                : 'notes',
+                            )
+                          }
+                          type="button"
+                        >
+                          {currentStage.key === 'verify'
+                            ? 'Review confirmed work'
+                            : 'Open support notes'}
+                        </button>
+                      ) : null}
+                      <details className="mt-3">
+                        <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-accent">
+                          Full report and prior checks
+                        </summary>
+                        <TicketIssueDetails description={ticket.description} />
+                      </details>
+                    </section>
+                    <WorkspaceToolLauncher
+                      key={ticket.id}
+                      activeToolSlug={activeToolSlug}
+                      experienceMode={experienceMode}
+                      onSelectTool={setActiveTool}
+                      ticketCategory={ticket.category}
+                      ticketId={ticket.id}
+                      toolSlugs={ticket.suggestedTools}
+                    />
+                    <ActiveToolPane
+                      activeTicketId={ticket.id}
+                      activeToolSlug={activeToolSlug}
+                      onSelectTool={setActiveTool}
+                      onBack={() => {
+                        const params = new URLSearchParams(
+                          searchParams.toString(),
+                        );
+                        params.delete('tool');
+                        for (const key of TOOL_HINT_KEYS) params.delete(key);
+                        setActiveToolState(null);
+                        setPhonePane('work');
+                        router.replace(`${pathname}?${params.toString()}`, {
+                          scroll: false,
+                        });
+                        workHeading.current?.focus();
+                      }}
+                    />
+                  </div>
+                  <TicketActionBar ticket={ticket} />
+                </div>
+              </TabsContent>
+              {learner ? notePanel : null}
+            </div>
             <aside
               aria-label="Ticket workspace rail"
-              className="contents min-w-0 sm:block sm:space-y-4 sm:mt-4 lg:mt-0"
+              className="sd-ticket-rail contents min-w-0 sm:block sm:space-y-4 sm:mt-4 lg:mt-0"
             >
               {experienceMode !== 'assessment' ? (
                 <details className="order-first rounded-sm bg-surface-raised px-3 py-1 sm:order-none">
@@ -397,33 +437,32 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
                     No evidence confirmed yet.
                   </p>
                 )}
+                {learner ? (
+                  <div className="mt-5 space-y-5">
+                    <RequesterCard requester={ticket.requester} />
+                    <RelatedDevicePanel device={ticket.device} />
+                  </div>
+                ) : null}
               </TabsContent>
-              <TabsContent
-                className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
-                forceMount
-                value="notes"
-              >
-                <ResolutionNotePanel
-                  key={ticket.id}
-                  experienceMode={experienceMode}
-                  notes={ticket.notes}
-                  onSubmit={(body) => submitResolutionNote(ticket.id, body)}
-                />
-              </TabsContent>
+              {!learner ? notePanel : ticketQueue}
             </aside>
           </div>
         </Tabs>
         <OutcomeBar ticket={ticket} />
-        <details className="border-t border-border pt-2">
-          <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
-            Case and device details
-          </summary>
-          <div className="grid gap-4 md:grid-cols-2">
-            <RequesterCard requester={ticket.requester} />
-            <RelatedDevicePanel device={ticket.device} />
-          </div>
-          <p className="mt-3 text-xs text-text-muted">{ticket.sla.target}</p>
-        </details>
+        {!learner ? (
+          <details className="border-t border-border pt-2">
+            <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
+              Case and device details
+            </summary>
+            <div className="grid gap-4 md:grid-cols-2">
+              <RequesterCard requester={ticket.requester} />
+              <RelatedDevicePanel device={ticket.device} />
+            </div>
+            <p className="mt-3 text-xs text-text-muted">{ticket.sla.target}</p>
+          </details>
+        ) : (
+          <p className="text-xs text-text-muted">{ticket.sla.target}</p>
+        )}
         <details className="border-t border-border pt-2">
           <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
             Activity timeline ({ticket.activity.length})

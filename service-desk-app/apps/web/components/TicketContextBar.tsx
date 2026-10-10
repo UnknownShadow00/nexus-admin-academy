@@ -47,8 +47,9 @@ export function TicketContextBar({
     : null;
 
   return (
-    <header className="min-w-0 border-b border-border pb-4">
+    <header className="sd-ticket-heading min-w-0 border-b border-border pb-4">
       <div>
+        <p className="sd-ticket-eyebrow">TICKET SIMULATION</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             className="sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-semibold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus lg:hidden"
