@@ -48,6 +48,7 @@ frontend/tests/e2e/academy-phase3-fixtures.spec.js
 frontend/tests/e2e/academy-phase3.spec.js
 frontend/tests/e2e/learning-ui.spec.js
 frontend/tests/e2e/my-training.spec.js
+frontend/tests/e2e/phase0a-live-path.spec.js
 frontend/tests/e2e/service-desk-integration.spec.js
 frontend/tests/e2e/student-recovery.spec.js
 frontend/tests/e2e/weeks-1-4-quality.spec.js

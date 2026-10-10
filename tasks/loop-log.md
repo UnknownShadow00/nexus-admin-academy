@@ -3262,3 +3262,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/components/academy/quiz.css, frontend/tests/e2e/academy-phase3.spec.js, docs/design/academy-phase3/REVIEW.md, tasks/loop-log.md
 - Result: Backdrop now matches the existing 24px shell gutter at 768–1279px. Two real-API legacy/V2 cases pass at 768/1024/1279/1280px; build passes. Required 1440/1280/390 screenshots and all shared layouts are unaffected. Overflow assertions remain unchanged.
 - Next: Verify current-head CI and stop for owner review.
+
+## [2026-10-10 21:02:46 UTC] Task Completed
+- Task: Update beginner trust-path quiz scope after CI reached its nineteen-question assessment.
+- Files changed: frontend/tests/e2e/phase0a-live-path.spec.js, docs/design/academy-phase3/changed-files.txt, tasks/loop-log.md
+- Result: The test reads heading and options from the approved question card; authored option, full-score, historical review and Service Desk unlock assertions remain intact. Other remaining fieldset/panel selectors were checked for quiz dependencies and remain valid for their separate lab/admin surfaces.
+- Next: Finish current-head CI and stop for owner review.

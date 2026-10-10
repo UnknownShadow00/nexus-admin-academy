@@ -50,7 +50,7 @@ test("Week 2 quiz presentation and truthful INC2404 repair unlock Week 3", async
   let fifthOptions;
   for (let number = 1; number <= weekTwoQuiz.questions.length; number += 1) {
     await expect(page.getByText(`Question ${number} of 19`, { exact: true })).toBeVisible();
-    const panel = page.locator("fieldset.panel");
+    const panel = page.locator(".question-card");
     const heading = await panel.getByRole("heading").innerText();
     const authored = weekTwoQuiz.questions.find((item) => heading.includes(item.question_text));
     expect(authored, `authored question shown at position ${number}`).toBeTruthy();
