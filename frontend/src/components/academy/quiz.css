@@ -79,3 +79,6 @@
 .academy .academy-workspace:has(.academy-quiz)>.scene-footer .castle{max-height:220px;object-fit:cover;object-position:center 55%;opacity:.65}
 .academy .academy-workspace:has(.academy-quiz)>.scene-footer .scene-fade{background:linear-gradient(180deg,var(--bg) calc(100% - 220px),transparent calc(100% - 80px))}
 @media(max-width:767px){.academy .academy-workspace:has(.academy-quiz){padding-bottom:180px}.academy-quiz .quiz-backdrop{inset:-140px -16px auto auto;height:230px;opacity:.1}}
+
+/* Compact shell uses 24px gutters; keep atmospheric art inside the viewport. */
+@media(min-width:768px) and (max-width:1279px){.academy-quiz .quiz-backdrop{right:-24px}}

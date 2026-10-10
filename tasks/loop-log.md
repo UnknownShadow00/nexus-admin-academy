@@ -3256,3 +3256,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/service-desk-integration.spec.js, frontend/tests/e2e/weeks-1-4-quality.spec.js, docs/design/academy-phase3/changed-files.txt, tasks/loop-log.md
 - Result: Same quiz answer and cross-application progression assertions preserved; no application, Service Desk or grading changes.
 - Next: Verify complete draft PR CI and stop for owner review.
+
+## [2026-10-10 20:52:04 UTC] Task Completed
+- Task: Fix Quiz backdrop overflow at compact desktop/tablet widths found by seeded CI.
+- Files changed: frontend/src/components/academy/quiz.css, frontend/tests/e2e/academy-phase3.spec.js, docs/design/academy-phase3/REVIEW.md, tasks/loop-log.md
+- Result: Backdrop now matches the existing 24px shell gutter at 768–1279px. Two real-API legacy/V2 cases pass at 768/1024/1279/1280px; build passes. Required 1440/1280/390 screenshots and all shared layouts are unaffected. Overflow assertions remain unchanged.
+- Next: Verify current-head CI and stop for owner review.

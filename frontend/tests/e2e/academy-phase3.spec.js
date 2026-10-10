@@ -112,3 +112,15 @@ test("320px keyboard, theme persistence, authenticated access and real prerequis
   const anonymous = await playwright.request.newContext(); expect((await anonymous.get(fixture.api + apiRoute)).status()).toBe(401); await anonymous.dispose();
   await page.getByRole("button", { name: "Account menu" }).click(); await page.getByRole("button", { name: "Sign out" }).click(); await expect(page).toHaveURL(/login/);
 });
+
+for (const role of ["v2", "legacy"]) test(`tablet backdrop respects compact shell gutters ${role}`, async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 900 }); await login(page, role);
+  if (role === "v2") await page.request.post(fixture.api + apiRoute + "/attempts");
+  await page.goto(role === "v2" ? route : `/quizzes/${fixture.legacy_quiz_id}`);
+  await expect(page.locator(".question-card")).toBeVisible();
+  for (const width of [768, 1024, 1279, 1280]) {
+    await page.setViewportSize({ width, height: 900 }); await noOverflow(page);
+    expect((await page.locator(".quiz-backdrop").boundingBox()).x + (await page.locator(".quiz-backdrop").boundingBox()).width).toBeLessThanOrEqual(width);
+  }
+  await page.getByRole("button", { name: "Toggle dark mode" }).click(); await noOverflow(page);
+});
