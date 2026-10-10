@@ -3250,3 +3250,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/my-training.spec.js, docs/design/academy-phase3/REVIEW.md, docs/design/academy-phase3/changed-files.txt, tasks/loop-log.md
 - Result: Both tests select the actual question card; all grading, answer-review, unlock and isolation assertions are retained. No application behavior changed.
 - Next: Rerun GitHub CI on the stacked draft; stop for owner review when verification finishes.
+
+## [2026-10-10 20:46:23 UTC] Task Completed
+- Task: Update the remaining shared orientation-quiz helpers to the approved question-card selector.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js, frontend/tests/e2e/weeks-1-4-quality.spec.js, docs/design/academy-phase3/changed-files.txt, tasks/loop-log.md
+- Result: Same quiz answer and cross-application progression assertions preserved; no application, Service Desk or grading changes.
+- Next: Verify complete draft PR CI and stop for owner review.
