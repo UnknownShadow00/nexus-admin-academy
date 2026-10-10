@@ -81,6 +81,7 @@ Tests:
 - `frontend/tests/e2e/forced-password-change.spec.js` (full real orientation-title assertion)
 - `frontend/tests/e2e/my-training.spec.js` (same title assertions)
 - `frontend/tests/e2e/student-recovery.spec.js` (same title assertion)
+- `frontend/tests/e2e/weeks-1-4-quality.spec.js` (same title assertion; full older Weeks 1–4 journey not run locally)
 
 Evidence/required completion log:
 - `docs/design/academy-phase2/REVIEW.md`
