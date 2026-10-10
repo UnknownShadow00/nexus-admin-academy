@@ -1,6 +1,6 @@
 # Nexus Academy Phase 2 — Lesson integration
 
-Owner review only. Stack this draft on `feature/nexus-academy-integration-phase1` (PR #65), not main. Phase 1 head was fetched and verified as `2ddb099de80e77aed28bf03ef563fc59b7d513c6`; approved `2ddb099` is its ancestor/head. New branch/worktree: `feature/nexus-academy-integration-phase2`, `/home/nexus/worktrees/nexus-academy-integration-phase2`.
+Owner review only. [Draft PR #66](https://github.com/UnknownShadow00/nexus-admin-academy/pull/66) targets `feature/nexus-academy-integration-phase1` (PR #65), not main. Phase 1 head was fetched and verified as `2ddb099de80e77aed28bf03ef563fc59b7d513c6`; approved `2ddb099` is its ancestor/head. New branch/worktree: `feature/nexus-academy-integration-phase2`, `/home/nexus/worktrees/nexus-academy-integration-phase2`.
 
 ## Focused mapping and implementation
 
@@ -20,7 +20,7 @@ Only Lesson styling was added, scoped under `.academy-lesson`. The 248px Phase 1
 ## Preview and evidence
 
 - Isolated React preview: http://127.0.0.1:5189
-- Disposable real API: http://127.0.0.1:8019/api/health
+- Disposable real API health: http://127.0.0.1:8019/health
 - Lesson: `/learning-v2/modules/module.nexus.beginner.stage1/lessons/lesson.nexus.beginner.s1.support_work`
 - Separate disposable V2, legacy and admin accounts; random credentials are stored outside Git with mode 0600. No live accounts or database were used.
 - Reuses unchanged `scripts/e2e/academy_phase1_preview.py --port 8019 --frontend-port 5189`; the Phase 1 name is the harness's existing temporary-directory prefix. This run has its own newly created SQLite database.
