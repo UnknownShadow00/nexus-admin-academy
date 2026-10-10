@@ -106,7 +106,7 @@ test("beginner recovers notes, quiz position, and service failures on mobile", a
     await expect(page.getByRole("heading", { name: "Lesson unavailable" })).toBeVisible();
     await page.unroute("**/api/lessons/1");
     await page.getByRole("button", { name: "Retry lesson" }).click();
-    await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
   } finally {
     if (studentId) {
       await page.context().clearCookies();

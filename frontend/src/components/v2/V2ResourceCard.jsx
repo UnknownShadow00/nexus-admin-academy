@@ -4,8 +4,9 @@ import { recordV2Resource } from "../../services/api";
 import Banner from "../ui/Banner";
 import TeachingCardViewer from "./TeachingCardViewer";
 import V2Status from "./V2Status";
+import LessonVideo from "../academy/LessonVideo";
 
-export default function V2ResourceCard({ resource, moduleKey, onChanged }) {
+export default function V2ResourceCard({ resource, moduleKey, onChanged, lessonPoster = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
@@ -27,6 +28,16 @@ export default function V2ResourceCard({ resource, moduleKey, onChanged }) {
     }
   }
   function openCard() { setOpen(true); void update({ opened: true }); }
+  if (lessonPoster && resource.url) return <div className="lesson-featured-resource">
+    <LessonVideo title={resource.title} provider={resource.provider} duration={resource.duration} url={resource.url} video={resource.type === "video"} onOpen={internalCard ? openCard : () => update({ opened: true })} internalCard={internalCard} opener={opener} opened={Boolean(resource.opened_at || confirmedStatus === "viewed")} />
+    <div className="lesson-resource-status"><span className="small sub">{resource.type?.replaceAll("_", " ") || "Resource"}{resource.required ? " · Required" : " · Optional"}</span><V2Status status={confirmedStatus || resource.status} />
+      {resource.type === "video" && resource.opened_at && !resource.watched_at ? <button className="btn-secondary" disabled={busy} onClick={() => update({ watched: true })} type="button">{busy ? "Saving..." : "I watched this"}</button> : null}
+      {resource.type === "video" && resource.watched_at ? <p className="small sub" role="status">Watched (self reported). Viewing alone does not grant mastery.</p> : null}
+      <p className="small sub">Opening a resource records a visit. Viewing alone does not mean you passed a check.</p>
+      {error ? <Banner variant="error">{error}</Banner> : null}
+    </div>
+    {open ? <TeachingCardViewer title={resource.title} src={resource.url} opener={opener} onClose={() => setOpen(false)} /> : null}
+  </div>;
   return <article className="learning-resource">
     <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 flex-1"><p className="type-label">{resource.type?.replaceAll("_", " ") || "Resource"}{resource.required ? " · Required" : " · Optional"}</p><h3 className="mt-1 break-words font-semibold">{resource.title}</h3>{resource.provider ? <p className="type-meta mt-1">{resource.provider}{resource.duration ? ` · ${resource.duration}` : ""}</p> : null}</div><V2Status status={confirmedStatus || resource.status} /></div>
     <div className="mt-4 flex flex-wrap gap-2">

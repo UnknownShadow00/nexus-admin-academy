@@ -109,7 +109,7 @@ test("forced first-login rotation and admin reset preserve beginner progress", a
     await page.getByRole("link", { name: "Start Training" }).first().click();
     await expect(page).toHaveURL(/\/lessons\/\d+$/);
     const orientationPath = new URL(page.url()).pathname;
-    await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
     await expect(page.getByRole("button", { name: "Orientation complete", exact: true })).toBeVisible();
 

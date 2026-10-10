@@ -18,7 +18,7 @@ function responseFor(type, answer) {
   return { choice_id: answer };
 }
 
-export default function V2Interaction({ moduleKey, interactionKey }) {
+export default function V2Interaction({ moduleKey, interactionKey, embedded = false, onChanged }) {
   const [data, setData] = useState(null);
   const [answer, setAnswer] = useState(null);
   const [result, setResult] = useState(null);
@@ -50,6 +50,7 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
       const response = await submitV2Interaction(moduleKey, interactionKey, interaction.version_id, responseFor(interaction.type, answer), { suppressToast: true });
       setData(response.data);
       setResult(response.data.submission_result);
+      await onChanged?.();
     } catch (err) {
       setError(err?.userMessage || "Your answer could not be saved. Try again.");
       if (err?.response?.status === 409) {
@@ -59,13 +60,16 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
       setBusy(false);
     }
   }
-  return <section className="learning-section space-y-5" aria-labelledby="interaction-title">
+  const Heading = embedded ? "h3" : "h1";
+  const titleId = embedded ? `interaction-title-${interactionKey}` : "interaction-title";
+  const instructionsId = embedded ? `interaction-instructions-${interactionKey}` : "interaction-instructions";
+  return <section className="learning-section space-y-5" aria-labelledby={titleId}>
     <div className="flex flex-wrap items-start justify-between gap-3"><div>
       <p className="type-label">Try it{interaction.required ? " · Required" : " · Optional"}</p>
-      <h1 className="type-page-title" id="interaction-title">{interaction.title}</h1>
+      <Heading className="type-page-title" id={titleId}>{interaction.title}</Heading>
     </div><V2Status status={progress.status} /></div>
-    <p id="interaction-instructions">{interaction.instructions}</p>
-    <form className="space-y-5" onSubmit={submit} aria-describedby="interaction-instructions">
+    <p id={instructionsId}>{interaction.instructions}</p>
+    <form className="space-y-5" onSubmit={submit} aria-describedby={instructionsId}>
       <fieldset disabled={busy || stale || Boolean(result)} className="min-w-0"><legend className="sr-only">Your answer</legend><Renderer content={interaction.content} value={answer} onChange={setAnswer} /></fieldset>
       {!result && !stale ? <button className="btn-primary min-h-11" type="submit" disabled={busy}>{busy ? "Checking..." : "Check answer"}</button> : null}
     </form>

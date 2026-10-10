@@ -60,7 +60,7 @@ async function createStudentAtWeekOne(page) {
   await page.getByRole("link", { name: "Start Training" }).first().click();
   await expect(page).toHaveURL(/\/lessons\/\d+$/);
   const orientationLessonPath = new URL(page.url()).pathname;
-  await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
   await expect(page.getByRole("button", { name: "Orientation complete", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Take quiz", exact: true }).click();
