@@ -47,6 +47,7 @@ frontend/src/utils/assessmentDraft.test.js
 frontend/tests/e2e/academy-phase3-fixtures.spec.js
 frontend/tests/e2e/academy-phase3.spec.js
 frontend/tests/e2e/learning-ui.spec.js
+frontend/tests/e2e/my-training.spec.js
 frontend/tests/e2e/student-recovery.spec.js
 scripts/e2e/academy_phase1_preview.py
 tasks/loop-log.md
