@@ -55,7 +55,7 @@ describe("V2AssessmentPage", () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/assessments/qc.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/assessments/:assessmentKey" element={<V2AssessmentPage />} /></Routes></MemoryRouter>);
     expect(await screen.findByLabelText("Your answer")).toHaveValue("");
     await userEvent.type(screen.getByLabelText("Your answer"), "mine");
-    expect(localStorage.getItem("v2_assessment_7_qc.dynamic_99")).toContain("mine");
+    expect(localStorage.getItem("nexus:assessment:7:module.dynamic:qc.dynamic:99")).toContain("mine");
   });
 
   it("warns before submitting unanswered questions and can review them", async () => {
@@ -129,5 +129,51 @@ describe("V2AssessmentPage", () => {
     expect(await screen.findByRole("heading", { name: "Passed" })).toBeVisible();
     expect(await screen.findByRole("link", { name: /Back to My Course/ })).toHaveAttribute("href", "/learning-v2");
     expect(screen.queryByText("Mastered")).not.toBeInTheDocument();
+  });
+});
+
+describe("Phase 3 recovery and submission integrity", () => {
+  beforeEach(() => {
+    cleanup(); localStorage.clear(); vi.resetAllMocks();
+    api.getV2Assessment.mockResolvedValue({ data: { assessment: { title: "Recovery check", role: "quick_check" }, attempt: { id: 101 }, questions: [{ id: 1, question_text: "Explain the observation", type: "short_answer", options: [] }, { id: 2, question_text: "Explain the next step", type: "free_response", options: [] }] } });
+  });
+  it("restores wording and position separately from answered progress", async () => {
+    mountAssessment();
+    await userEvent.type(await screen.findByLabelText("Your answer"), "My own phrasing");
+    await userEvent.click(screen.getByRole("button", { name: "Next question" }));
+    expect(screen.getByRole("progressbar", { name: "Questions answered" })).toHaveAttribute("aria-valuenow", "1");
+    expect(screen.getByText("Question 2 of 2")).toBeVisible();
+    cleanup(); mountAssessment();
+    expect(await screen.findByText("Question 2 of 2")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Previous" }));
+    expect(screen.getByLabelText("Your answer")).toHaveValue("My own phrasing");
+  });
+  it("warns about unanswered questions and can return to them", async () => {
+    mountAssessment(); await screen.findByLabelText("Your answer");
+    await userEvent.click(screen.getByRole("button", { name: "Next question" }));
+    await userEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("2 unanswered questions");
+    expect(api.submitV2Assessment).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Review unanswered" }));
+    expect(screen.getByText("Question 1 of 2")).toBeVisible();
+  });
+  it("retains responses on a failed submit and blocks duplicate requests", async () => {
+    let reject;
+    api.submitV2Assessment.mockImplementation(() => new Promise((_, fail) => { reject = fail; }));
+    mountAssessment(); await userEvent.type(await screen.findByLabelText("Your answer"), "First explanation");
+    await userEvent.click(screen.getByRole("button", { name: "Next question" }));
+    await userEvent.type(screen.getByLabelText("Your answer"), "Second explanation");
+    await userEvent.dblClick(screen.getByRole("button", { name: "Submit answers" }));
+    expect(api.submitV2Assessment).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Your answer")).toBeDisabled();
+    reject(new Error("Offline"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Your work is still here");
+    expect(screen.getByLabelText("Your answer")).toHaveValue("Second explanation");
+  });
+  it("continues safely when browser storage is disabled", async () => {
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw Error("Blocked storage"); });
+    mountAssessment(); await userEvent.type(await screen.findByLabelText("Your answer"), "Kept in memory");
+    expect(screen.getByText(/This browser cannot save your draft/)).toBeVisible();
+    expect(screen.getByLabelText("Your answer")).toHaveValue("Kept in memory"); spy.mockRestore();
   });
 });

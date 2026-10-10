@@ -27,7 +27,7 @@ export default function QuizReviewScreen({ quiz, result, onRetake, retakeLabel =
   const passed = result.passed;
 
   return (
-    <section className="space-y-5" aria-labelledby="quiz-result-title">
+    <section className="quiz-results space-y-5" aria-labelledby="quiz-result-title">
       <header className="scroll-mt-40 rounded-xl bg-blue-700 p-5 text-white sm:scroll-mt-24 sm:p-6">
         <p className="text-sm font-semibold text-blue-100">Quiz results</p>
         <h1 ref={headingRef} tabIndex={-1} id="quiz-result-title" className="mt-1 text-2xl font-bold outline-none">{quiz.title}</h1>

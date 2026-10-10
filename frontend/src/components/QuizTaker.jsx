@@ -4,6 +4,7 @@ import { getQuiz, submitQuiz } from "../services/api";
 import { clearQuizDraft, hasAnswer, OPTION_LETTERS, readQuizDraft, writeQuizDraft } from "../utils/quizDraft";
 import QuizReviewScreen from "./QuizReviewScreen";
 import Spinner from "./Spinner";
+import QuizLayout, { QuizFrame } from "./academy/QuizLayout";
 
 function shuffle(arr) {
   const copy = [...arr];
@@ -26,7 +27,7 @@ function buildShuffledQuestion(question, savedOrder) {
   };
 }
 
-export default function QuizTaker({ quizId, studentId }) {
+export default function QuizTaker({ quizId, studentId, back }) {
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
@@ -174,52 +175,34 @@ export default function QuizTaker({ quizId, studentId }) {
 
   if (loading) return <div className="panel"><Spinner text="Loading quiz..." /></div>;
   if (!quiz) return <div className="panel"><p role="alert">{loadError || "Quiz is unavailable right now."}</p><button type="button" className="btn-primary mt-4" onClick={loadQuiz}>Try again</button></div>;
-  if (result) return <QuizReviewScreen quiz={{ ...quiz, questions }} result={result} onRetake={retake} />;
+  if (result) return <QuizFrame><QuizReviewScreen quiz={{ ...quiz, questions }} result={result} onRetake={retake} /></QuizFrame>;
   if (!questions.length) return <div className="panel" role="alert">This quiz has no questions available yet. Return to your module and ask your instructor for help.</div>;
 
   const question = questions[currentIndex];
-  const total = questions.length;
   const currentAnswer = answers[question.id];
-  const answeredCount = questions.filter((item) => hasAnswer(answers[item.id])).length;
 
   return (
-    <section className="space-y-4" aria-labelledby="quiz-title" aria-busy={submitting}>
-      <header>
-        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{quiz.week_number === 0 ? "Orientation" : `Week ${quiz.week_number}`} · Knowledge check</p>
-        <h1 id="quiz-title" className="mt-1 text-2xl font-bold text-slate-950 dark:text-white">{quiz.title}</h1>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Choose {question.is_multi_select ? "all correct answers" : "one answer"}, then use Next. Submit once at the end to see your score and explanations. You can retry after reviewing.</p>
-        {(quiz.attempts?.length || 0) > 0 ? <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Previous attempts are kept. Only your first attempt awards XP; a retry can still improve your best score and progress.</p> : null}
-      </header>
-      {!storageAvailable ? <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">This browser cannot save your quiz draft. Keep this tab open until you submit.</p> : resumed ? <p role="status" className="text-sm text-slate-600 dark:text-slate-300">Your saved answers and place have been restored on this browser.</p> : <p className="text-xs text-slate-500 dark:text-slate-400">Your answers and place are saved on this browser as you work.</p>}
-      <div>
-        <div className="mb-1 flex flex-wrap justify-between gap-2 text-sm text-slate-600 dark:text-slate-300"><span>Question {currentIndex + 1} of {total}</span><span aria-live="polite">{answeredCount} answered</span></div>
-        <div role="progressbar" aria-label="Quiz question position" aria-valuemin={0} aria-valuemax={total} aria-valuenow={currentIndex + 1} className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-2 rounded-full bg-blue-600 transition-all" style={{ width: `${((currentIndex + 1) / total) * 100}%` }} /></div>
-      </div>
-      <fieldset className="panel min-w-0 dark:border-slate-700 dark:bg-slate-900" disabled={submitting} aria-describedby="quiz-answer-instruction">
+    <QuizLayout title={quiz.title} eyebrow={`${quiz.week_number === 0 ? "Orientation" : `Week ${quiz.week_number}`} · Knowledge check`}
+      questions={questions} index={currentIndex} hasAnswer={item => hasAnswer(answers[item.id])} onNavigate={navigateQuestion} onSubmit={onSubmit} busy={submitting}
+      numbered back={back || <a href="/quizzes">Back to Quizzes</a>} headingRef={questionHeadingRef} nextLabel="Next" submitLabel="Submit Quiz" error={submitError}
+      instruction={question.is_multi_select ? "Select all that apply. You can revise your selection before submitting." : undefined}
+      storage={!storageAvailable ? "This browser cannot save your quiz draft. Keep this tab open until you submit." : resumed ? "Your saved answers and place have been restored on this browser. Not submitted to the server yet." : "Your answers and place are saved on this browser as you work. Not submitted to the server yet."}>
+      <fieldset className="choices" disabled={submitting} aria-describedby="quiz-answer-instruction">
         <legend className="sr-only">Question {currentIndex + 1}: {question.question_text}</legend>
-        <h2 ref={questionHeadingRef} tabIndex={-1} className="mb-3 scroll-mt-40 break-words font-semibold text-slate-900 outline-none dark:text-slate-100 sm:scroll-mt-24">{currentIndex + 1}. {question.question_text}</h2>
         <p id="quiz-answer-instruction" className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">{question.is_multi_select ? "Select all that apply" : "Select one answer"}</p>
         <div className="space-y-2">
           {question.shuffledOptions.map(({ display, text, realLetter }) => {
             const selected = question.is_multi_select ? (currentAnswer || []).includes(realLetter) : currentAnswer === realLetter;
             return (
-              <label key={realLetter} className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 dark:focus-within:ring-blue-300 dark:focus-within:ring-offset-slate-900 ${selected ? "border-blue-600 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30" : "border-slate-300 hover:border-blue-400 dark:border-slate-600"}`}>
-                <input type={question.is_multi_select ? "checkbox" : "radio"} className="sr-only" name={`q_${question.id}`} checked={selected} onChange={() => selectAnswer(question, realLetter)} />
-                <span aria-hidden="true" className={`flex h-7 w-7 shrink-0 items-center justify-center border text-sm font-bold ${question.is_multi_select ? "rounded" : "rounded-full"} ${selected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-400 text-slate-700 dark:text-slate-200"}`}>{selected ? "✓" : display}</span>
+              <label key={realLetter} className={`choice ${selected ? "selected" : ""}`}>
+                <input type={question.is_multi_select ? "checkbox" : "radio"} name={`q_${question.id}`} checked={selected} onChange={() => selectAnswer(question, realLetter)} />
+                <span aria-hidden="true" className="letter">{selected ? "✓" : display}</span>
                 <span className="min-w-0 break-words pt-0.5 text-sm text-slate-800 dark:text-slate-200">{text}</span>
               </label>
             );
           })}
         </div>
       </fieldset>
-      <nav className="flex flex-wrap gap-2" aria-label="Quiz questions">
-        {questions.map((item, index) => <button type="button" key={item.id} disabled={submitting} onClick={() => navigateQuestion(index)} className={`h-11 min-w-11 rounded px-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${index === currentIndex ? "bg-blue-600 text-white" : hasAnswer(answers[item.id]) ? "border border-blue-300 bg-blue-50 text-blue-900 dark:bg-blue-950 dark:text-blue-100" : "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"}`} aria-label={`Go to question ${index + 1}${hasAnswer(answers[item.id]) ? ", answered" : ", unanswered"}`} aria-current={index === currentIndex ? "step" : undefined}>{index + 1}{hasAnswer(answers[item.id]) ? <span aria-hidden="true"> ✓</span> : null}</button>)}
-      </nav>
-      {submitError ? <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-100">{submitError}</p> : null}
-      <div className="flex gap-3">
-        {currentIndex > 0 ? <button type="button" className="btn-secondary min-h-11 flex-1" disabled={submitting} onClick={() => navigateQuestion(currentIndex - 1)}>Previous</button> : null}
-        {currentIndex < total - 1 ? <button type="button" className="btn-primary min-h-11 flex-1" disabled={submitting} onClick={() => navigateQuestion(currentIndex + 1)}>Next</button> : <button type="button" className="btn-primary min-h-11 flex-1" onClick={onSubmit} disabled={submitting}>{submitting ? "Submitting..." : "Submit Quiz"}</button>}
-      </div>
-    </section>
+    </QuizLayout>
   );
 }

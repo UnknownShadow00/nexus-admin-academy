@@ -7,9 +7,8 @@ export default function QuizPage() {
   const { quizId } = useParams();
   const studentId = getCurrentStudent()?.id;
   return (
-    <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
-      <BackLink className="btn-secondary" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
-      <QuizTaker key={`${studentId}:${quizId}`} quizId={quizId} studentId={studentId} />
-    </main>
+    <div className="space-y-4">
+      <QuizTaker key={`${studentId}:${quizId}`} quizId={quizId} studentId={studentId} back={<BackLink className="small" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />} />
+    </div>
   );
 }

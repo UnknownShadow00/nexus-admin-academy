@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8018)
     parser.add_argument("--frontend-port", type=int, default=5188)
+    parser.add_argument("--assessment-fixtures", action="store_true", help="Add a separate enrolled practice account with fixture continuation grants for six-type assessment tests")
     args = parser.parse_args()
     if not 1024 <= args.port <= 65535 or not 1024 <= args.frontend_port <= 65535:
         parser.error("Choose unprivileged local ports")
@@ -28,7 +29,7 @@ def main():
     os.chmod(scratch, 0o700)
     credentials = {
         role: {"username": f"academy-preview-{role}", "password": secrets.token_urlsafe(18)}
-        for role in ["v2", "legacy", "admin"]
+        for role in (["v2", "legacy", "admin", "practice"] if args.assessment_fixtures else ["v2", "legacy", "admin"])
     }
     os.environ.update({
         "APP_ENV": "development", "DATABASE_URL": f"sqlite:///{scratch / 'preview.db'}",
@@ -66,14 +67,31 @@ def main():
             db.add(TrainingWeekActivity(training_week_id=week.id, stable_id=f"preview-orientation-{i}", activity_type="lesson", content_ref=str(lesson.id), display_order=i, is_required=True, estimated_minutes=lesson.estimated_minutes, metadata_json={}))
         load_module(db, commit=True)
         load_interactions(db, path=str(backend / "content/interactions/nexus-beginner-aplus-v1.yaml"), commit=True)
-        for role in ["v2", "legacy"]:
+        for role in (["v2", "legacy", "practice"] if args.assessment_fixtures else ["v2", "legacy"]):
             student = Student(name="Taylor Preview" if role == "v2" else "Morgan Preview", email=f"{role}@example.invalid", username=credentials[role]["username"], password_hash=hash_password(credentials[role]["password"]), total_xp=340 if role == "v2" else 0)
             db.add(student)
             db.flush()
             db.add(LoginStreak(student_id=student.id, current_streak=3 if role == "v2" else 1, longest_streak=5 if role == "v2" else 1, last_login=date.today() - timedelta(days=1)))
             credentials[role]["student_id"] = student.id
+        if args.assessment_fixtures:
+            from app.models.quiz import Quiz
+            from app.services.seed_question_sync import sync_seed_questions
+            from seed_phase_a import QUIZZES
+            authored = QUIZZES[0]
+            quiz = Quiz(title=authored["title"], week_number=authored["week_number"], domain_id=authored["domain_id"], question_count=len(authored["questions"]), status="published", editorial_status="validated", answer_keys_validated=True, is_active=True, is_required=False, show_in_weekly_checklist=False, show_in_practice_library=True, quiz_purpose="practice", source_type="seed")
+            db.add(quiz)
+            db.flush()
+            sync_seed_questions(db, quiz, authored["questions"])
+            credentials["legacy_quiz_id"] = quiz.id
+            from app.models.certification import CertificationModule
+            from app.models.v2_continuation import V2BeginnerContinuationGrant
+            # Fixture setup only: this distinct learner exercises later-stage UI.
+            # The original v2 account has no grants and still tests real locks.
+            for key in [f"module.nexus.beginner.stage{i}" for i in [1, 2, 3]]:
+                module = db.query(CertificationModule).filter_by(module_key=key).one()
+                db.add(V2BeginnerContinuationGrant(student_id=credentials["practice"]["student_id"], certification_module_id=module.id, grant_reason="test_fixture"))
         db.commit()
-    os.environ["V2_PILOT_STUDENT_IDS"] = str(credentials["v2"]["student_id"])
+    os.environ["V2_PILOT_STUDENT_IDS"] = ",".join(str(credentials[role]["student_id"]) for role in (["v2", "practice"] if args.assessment_fixtures else ["v2"]))
     credentials.update({"api": f"http://127.0.0.1:{args.port}", "frontend": f"http://127.0.0.1:{args.frontend_port}", "database": str(scratch / "preview.db")})
     path = scratch / "credentials.json"
     path.write_text(json.dumps(credentials, indent=2))

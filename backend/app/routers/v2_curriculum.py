@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -57,8 +57,23 @@ class ResourceActivityRequest(BaseModel):
 
 
 class AssessmentSubmitRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     attempt_id: int = Field(..., gt=0)
-    answers: dict[str, str | list[str]] = Field(default_factory=dict)
+    answers: dict[str, str | list[str]] = Field(default_factory=dict, max_length=200)
+
+    @field_validator("answers")
+    @classmethod
+    def bounded_answers(cls, answers):
+        for key, value in answers.items():
+            if not key.isdecimal() or len(key) > 20:
+                raise ValueError("Answer keys must be question IDs")
+            values = value if isinstance(value, list) else [value]
+            if len(values) > 8:
+                raise ValueError("Select at most eight options")
+            for answer in values:
+                if len(answer) > 10000 or any(ord(char) < 32 and char not in "\n\r\t" for char in answer):
+                    raise ValueError("Answers allow up to 10,000 characters and no control characters except line breaks and tabs")
+        return answers
 
 
 class ExplainSubmitRequest(BaseModel):
