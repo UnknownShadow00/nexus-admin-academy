@@ -69,7 +69,7 @@ async function createStudentAtWeekOne(page) {
 
   for (let index = 1; index <= 4; index += 1) {
     await expect(page.getByText(`Question ${index} of 4`, { exact: true })).toBeVisible();
-    const questionPanel = page.locator("section .panel").first();
+    const questionPanel = page.locator(".question-card");
     const questionText = await questionPanel.textContent();
     const correctOptions = questionText.includes("initial data collection")
       ? ["User information", "Device information", "Problem description"]

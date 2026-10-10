@@ -69,7 +69,7 @@ test("beginner recovers notes, quiz position, and service failures on mobile", a
     expect(focusShadow).not.toBe("none");
     await page.screenshot({ path: testInfo.outputPath("quiz-mobile-focus.png"), fullPage: true });
     await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(page.locator("fieldset h2")).toBeFocused();
+    await expect(page.locator(".question-title h2")).toBeFocused();
     const question = await page.locator("fieldset").innerText();
     await page.reload();
     await expect(page.getByText("Question 2 of 4", { exact: true })).toBeVisible();

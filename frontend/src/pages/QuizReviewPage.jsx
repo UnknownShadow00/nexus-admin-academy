@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import BackLink from "../components/BackLink";
 import QuizReviewScreen from "../components/QuizReviewScreen";
+import { QuizFrame } from "../components/academy/QuizLayout";
 import Spinner from "../components/Spinner";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getQuizReview } from "../services/api";
@@ -37,9 +38,9 @@ export default function QuizReviewPage() {
   }, [quizId, retryKey, studentId]);
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
+    <QuizFrame>
       <BackLink className="btn-secondary" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
       {loading ? <Spinner text="Loading review..." /> : error ? <section className="panel"><h1 className="text-xl font-bold">{error.missingAttempt ? "Take your first attempt" : "Quiz review unavailable"}</h1><p role="alert" className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p>{error.missingAttempt ? <Link className="btn-primary mt-4" to={`/quizzes/${quizId}`} state={location.state}>Take quiz</Link> : <button type="button" className="btn-primary mt-4" onClick={() => setRetryKey((value) => value + 1)}>Try again</button>}</section> : data ? <QuizReviewScreen quiz={{ title: data.title, questions: data.questions }} result={data} retakeLabel="Retake Quiz" onRetake={() => navigate(`/quizzes/${quizId}`, { state: location.state })} /> : null}
-    </main>
+    </QuizFrame>
   );
 }

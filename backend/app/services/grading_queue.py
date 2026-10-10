@@ -44,7 +44,7 @@ from app.models.grading import (
     MentorGradeOverride,
     PendingGrade,
 )
-from app.services.deterministic_grader import grade_free_response, grade_short_answer
+from app.services.deterministic_grader import grade_assessment_written_response, grade_free_response, grade_short_answer
 from app.services.grading_config import GradingConfig, load_grading_config, next_retry_delay_seconds
 from app.services.grading_provider import (
     OUTCOME_OK,
@@ -79,7 +79,14 @@ def run_deterministic(
     rubric_version: str | None = None,
     min_concepts_for_pass: int | None = None,
     partial_credit: bool = True,
+    assessment_response: bool = False,
 ) -> dict:
+    if assessment_response:
+        return grade_assessment_written_response(
+            submitted_answer, question_type="free_response" if question_type == SOURCE_FREE_RESPONSE else "short_answer",
+            acceptable_answers=acceptable_answers, expected_concepts=expected_concepts,
+            match_mode=match_mode, rubric_version=rubric_version, min_concepts_for_pass=min_concepts_for_pass,
+        )
     if question_type in (SOURCE_FREE_RESPONSE, "free_response", SOURCE_INTERVIEW, "interview_explain"):
         return grade_free_response(
             submitted_answer,
@@ -113,6 +120,7 @@ def submit_for_grading(
     match_mode: str = "normalized",
     min_concepts_for_pass: int | None = None,
     partial_credit: bool = True,
+    assessment_response: bool = False,
     pass_threshold: float | None = None,
     max_retries: int | None = None,
     commit: bool = True,
@@ -135,6 +143,7 @@ def submit_for_grading(
         rubric_version=rubric_version,
         min_concepts_for_pass=min_concepts_for_pass,
         partial_credit=partial_credit,
+        assessment_response=assessment_response,
     )
 
     # Idempotency: one job per (source_type, submission_ref).

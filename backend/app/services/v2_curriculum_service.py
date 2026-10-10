@@ -947,8 +947,8 @@ def _attempt_result(attempt: V2AssessmentAttempt, assessment: ModuleAssessment) 
             "question_text": snapshot["question_text"],
             "student_answer": row.submitted_answer or "",
             "is_correct": row.passed,
-            "correct_answer": snapshot["correct_answers"] if snapshot["type"] != "short_answer" else None,
-            "explanation": snapshot.get("explanation", ""),
+            "correct_answer": snapshot["correct_answers"] if snapshot["type"] not in {"short_answer", "free_response"} and attempt.grading_state == "graded" else None,
+            "explanation": snapshot.get("explanation", "") if attempt.grading_state == "graded" else "",
             "grading_status": row.grading_status,
         })
     return {
@@ -1030,7 +1030,7 @@ def submit_assessment(db: Session, student_id: int, module_key: str, assessment_
     pending_rows = []
     for row in attempt.questions:
         snapshot = row.question_snapshot
-        answer = str(answers.get(str(row.question_id), "")).strip()
+        answer = str(answers.get(str(row.question_id), ""))
         kind = snapshot["type"]
         row.submitted_answer = answer
         if kind in {"short_answer", "free_response"}:
@@ -1049,6 +1049,7 @@ def submit_assessment(db: Session, student_id: int, module_key: str, assessment_
                 rubric_version=snapshot.get("rubric_version"),
                 match_mode=snapshot.get("answer_match_mode") or "normalized",
                 pass_threshold=1.0 if kind == "short_answer" else 0.7,
+                assessment_response=True,
                 commit=False,
             )
             if outcome["outcome"] == "graded":

@@ -284,3 +284,42 @@ def _result(
         "rubric_version": rubric_version,
         "detail": detail,
     }
+
+
+def grade_assessment_written_response(
+    response: str, *, question_type: str, acceptable_answers: list[str] | None = None,
+    expected_concepts: list | None = None, match_mode: str = "normalized",
+    rubric_version: str | None = None, min_concepts_for_pass: int | None = None,
+) -> dict:
+    """Conservative assessment-only policy; native interactions/Explain are unchanged.
+
+    Literal accepted answers remain deterministic. Unknown prose is not proof of
+    incorrect understanding. Queue it through the existing assessment review path.
+    Numeric alternatives and known diagnostic commands can still be unambiguously
+    wrong; empty/unanswered responses remain incorrect. No model is called here.
+    """
+    raw = response or ""
+    if question_type == "free_response":
+        result = grade_free_response(raw, expected_concepts or [], rubric_version=rubric_version,
+                                     min_concepts_for_pass=min_concepts_for_pass, partial_credit=False)
+    else:
+        result = grade_short_answer(raw, acceptable_answers or [], match_mode=match_mode, rubric_version=rubric_version)
+    if not raw.strip():
+        return result
+    normalized = normalize_text(raw)
+    accepted = [str(value) for value in acceptable_answers or [] if str(value).strip()]
+    exact = any((raw.strip() == value.strip() if match_mode == "exact" else normalized == normalize_text(value)) for value in accepted)
+    if question_type != "free_response" and exact:
+        return result
+    # Concept/phrase presence cannot prove that a prose explanation is correct.
+    # Assessment prose goes through the existing review queue, not keyword scoring.
+    numeric = bool(accepted) and all(re.fullmatch(r"[0-9]+", value.strip()) for value in accepted) and bool(re.fullmatch(r"[0-9]+", raw.strip()))
+    diagnostic_commands = {"ipconfig", "ifconfig", "ping", "tracert", "traceroute", "nslookup", "netstat", "hostname"}
+    known_command = bool(accepted) and all(normalize_text(value) in diagnostic_commands for value in accepted) and normalized in diagnostic_commands
+    if question_type != "free_response" and result["passed"] is False and (numeric or known_command):
+        return result
+    return _result(
+        GRADE_STATUS_NEEDS_REVIEW, 0.0, None, "assessment_wording_needs_review",
+        detail="The response was saved. Automatic matching cannot confidently judge this wording; a final grade is pending.",
+        rubric_version=rubric_version,
+    )
