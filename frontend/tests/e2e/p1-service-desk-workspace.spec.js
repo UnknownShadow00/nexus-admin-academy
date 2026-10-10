@@ -139,16 +139,8 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
     )
     .toBe(true);
   if (await page.getByText("Remote Login", { exact: true }).isVisible()) {
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(0)
-      .fill("student");
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(1)
-      .fill("password");
+    await page.getByPlaceholder("e.g. jdoe", { exact: true }).fill("student");
+    await page.getByPlaceholder("Domain password", { exact: true }).fill("password");
     await page.getByRole("button", { name: "OK", exact: true }).click();
   }
   await page.getByRole("button", { name: "Open Start menu" }).click();
@@ -257,16 +249,8 @@ test("P1 mobile Work Evidence Notes retain drafts and fit 390px", async ({
     )
     .toBe(true);
   if (await page.getByText("Remote Login", { exact: true }).isVisible()) {
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(0)
-      .fill("student");
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(1)
-      .fill("password");
+    await page.getByPlaceholder("e.g. jdoe", { exact: true }).fill("student");
+    await page.getByPlaceholder("Domain password", { exact: true }).fill("password");
     await page.getByRole("button", { name: "OK", exact: true }).click();
   }
   if (!(await page.getByLabel("Terminal command").isVisible())) {

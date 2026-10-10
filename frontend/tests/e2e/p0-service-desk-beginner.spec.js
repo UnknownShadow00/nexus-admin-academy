@@ -50,8 +50,8 @@ test('P0 authenticated beginner: curriculum launcher, trusted work, note rejecti
   await expect.poll(async () => (await page.getByText('Remote Login', { exact: true }).isVisible()) || (await page.getByRole('button', { name: 'Open Start menu' }).isVisible())).toBe(true);
   if (await page.getByText('Remote Login', { exact: true }).isVisible()) {
     // Simulator credentials are educational input, not an external account.
-    await page.locator('input').filter({ visible: true }).nth(0).fill('student');
-    await page.locator('input').filter({ visible: true }).nth(1).fill('password');
+    await page.getByPlaceholder('e.g. jdoe', { exact: true }).fill('student');
+    await page.getByPlaceholder('Domain password', { exact: true }).fill('password');
     await page.getByRole('button', { name: 'OK', exact: true }).click();
   }
   if (!await page.getByLabel('Terminal command').isVisible()) {
