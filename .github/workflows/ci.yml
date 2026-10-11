@@ -39,6 +39,10 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historical migration regressions archive pinned earlier sources.
+          # A shallow checkout silently skips those compatibility checks.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -86,6 +90,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Seed convergence tests compare actual historical source trees.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:

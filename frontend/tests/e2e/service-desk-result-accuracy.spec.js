@@ -58,6 +58,7 @@ test('historical assessment and real practice report server-owned modes without 
   await expect(page.getByRole('heading', { name: 'Assessment result: PASS — check Academy for awarded credit.' })).toBeVisible();
   await expect(page.locator('.sd-ticket-heading').getByText('Independent assessment', { exact: true })).toBeVisible();
   await expect(page.locator('.sd-ticket-debrief')).not.toContainText('module credit earned');
+  await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText('Resolved');
   await captureResults(page, 'ticket-result');
   expect((await summary(page)).total_xp).toBe(before.total_xp);
   // Start an actual optional replay through the existing authenticated API;
@@ -126,6 +127,7 @@ test('historical assessment and real practice report server-owned modes without 
   const attempt = await attemptResponse.json();
   expect(attempt.experience_mode).toBe('practice');
   expect(attempt.grade.passed).toBe(true);
+  await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText('Resolved');
   const after = await summary(page);
   expect(after.total_xp).toBe(before.total_xp);
   expect(after.tickets_completed).toBe(before.tickets_completed);

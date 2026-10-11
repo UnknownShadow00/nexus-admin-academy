@@ -1,6 +1,6 @@
 'use client';
 
-import type { Ticket } from '@service-desk/shared';
+import type { Ticket, TicketStatus } from '@service-desk/shared';
 import { PriorityBadge } from '@service-desk/ui';
 import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -34,17 +34,20 @@ export function TicketContextBar({
   ticket,
   completed = false,
   resultExperienceMode,
+  resultStatus,
   launchQuery = '',
 }: {
   assignment?: NexusAssignment;
   ticket: Ticket;
   completed?: boolean;
   resultExperienceMode?: ExperienceMode;
+  resultStatus?: TicketStatus;
   launchQuery?: string;
 }) {
   const displayMode = completed
     ? resultExperienceMode
     : assignment?.experience_mode;
+  const displayStatus = completed ? resultStatus : ticket.status;
   const remaining = assignment
     ? attemptsRemaining(
         assignment.maximum_attempts,
@@ -73,9 +76,11 @@ export function TicketContextBar({
           <span className="inline-flex items-center gap-1 text-xs text-text-muted">
             Priority <PriorityBadge pill priority={ticket.priority} />
           </span>
-          <span className="inline-flex items-center gap-1 text-xs text-text-muted">
-            Ticket status <TicketStatusBadge status={ticket.status} />
-          </span>
+          {displayStatus ? (
+            <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+              Ticket status <TicketStatusBadge status={displayStatus} />
+            </span>
+          ) : null}
           {displayMode ? (
             <span className="rounded-sm border border-border bg-surface-raised px-2 py-1 text-xs font-semibold text-text">
               {experienceModeLabel(displayMode)}

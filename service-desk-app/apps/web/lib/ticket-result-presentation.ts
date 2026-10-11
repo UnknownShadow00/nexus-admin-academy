@@ -1,6 +1,8 @@
+import { TicketStatus } from '@service-desk/shared';
 import type { NexusAttempt, NexusGrade } from './nexus-service-desk-client';
 
-export type ResultAttempt = Pick<NexusAttempt, 'id' | 'experience_mode'>;
+export type ResultAttempt = Pick<NexusAttempt, 'id' | 'experience_mode'> &
+  Partial<Pick<NexusAttempt, 'current_state'>>;
 export type ExperienceMode = NexusAttempt['experience_mode'];
 
 /** Use the graded attempt, never the assignment's next launch mode. */
@@ -10,6 +12,35 @@ export function resultExperienceMode(
 ): ExperienceMode | undefined {
   return attempt && String(attempt.id) === String(grade.attempt_id)
     ? attempt.experience_mode
+    : undefined;
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/** Restore the matching server attempt's operational status, never infer it from a grade. */
+export function resultTicketStatus(
+  grade: NexusGrade,
+  attempt: ResultAttempt | undefined,
+  ticketId: string,
+): TicketStatus | undefined {
+  if (!attempt || String(attempt.id) !== String(grade.attempt_id)) return;
+  const state = record(attempt.current_state);
+  const snapshot = record(state?.nexus_service_desk_attempt);
+  const overlays = record(snapshot?.ticketOverlays);
+  const overlay = record(overlays?.[ticketId]);
+  // Older API attempts stored the ticket overlay directly rather than a full snapshot.
+  const status =
+    overlay?.status ??
+    (state?.nexus_service_desk_attempt === undefined
+      ? state?.status
+      : undefined);
+  return typeof status === 'string' &&
+    Object.values(TicketStatus).includes(status as TicketStatus)
+    ? (status as TicketStatus)
     : undefined;
 }
 function resultLabel(mode?: ExperienceMode): string {
