@@ -20,18 +20,11 @@ import type {
 } from '../lib/nexus-service-desk-client';
 import { useNexusReturnTarget } from './useNexusReturnTarget';
 
-export function learnerOutcomeCopy(grade: NexusGrade): string {
-  if (grade.learner_outcome === 'awaiting_review')
-    return 'Assessment result: AWAITING REVIEW — module credit pending.';
-  if (!grade.passed)
-    return 'Assessment result: NEEDS ANOTHER ATTEMPT — no module credit earned.';
-  if (
-    grade.learner_outcome === 'escalated_successfully' ||
-    grade.debrief?.result.outcome === 'escalated'
-  )
-    return 'Assessment result: ESCALATED SUCCESSFULLY — module credit earned.';
-  return 'Assessment result: PASS — module credit earned.';
-}
+import {
+  learnerOutcomeCopy,
+  type ExperienceMode,
+} from '../lib/ticket-result-presentation';
+export { learnerOutcomeCopy } from '../lib/ticket-result-presentation';
 
 const STATUS_ICON = {
   full: IconCircleCheck,
@@ -64,11 +57,13 @@ export function canRetryAttempt(
 export function TicketDebrief({
   assignment,
   grade,
+  experienceMode,
   onRetry,
   ticket,
 }: {
   assignment?: NexusAssignment;
   grade: NexusGrade;
+  experienceMode?: ExperienceMode;
   onRetry?: (ticketId: string) => Promise<boolean>;
   ticket: Ticket;
 }) {
@@ -77,7 +72,9 @@ export function TicketDebrief({
   const [retryError, setRetryError] = useState('');
   const debrief = grade.debrief;
 
-  const showRetry = Boolean(onRetry) && canRetryAttempt(grade, debrief);
+  const pendingReview = grade.learner_outcome === 'awaiting_review';
+  const showRetry =
+    !pendingReview && Boolean(onRetry) && canRetryAttempt(grade, debrief);
   // Server-sourced, never invented client-side: the label simply names the
   // attempt the server will create next.
   const nextAttemptNumber = assignment?.most_recent_attempt?.attempt_number;
@@ -138,12 +135,15 @@ export function TicketDebrief({
       <section className="mx-auto max-w-3xl space-y-5">
         <header className="border-b border-border pb-5">
           <h2 className="text-lg font-bold text-text">
-            {learnerOutcomeCopy(grade)}
+            {learnerOutcomeCopy(grade, experienceMode)}
           </h2>
           <p className="mt-2 text-sm text-text-muted">
             {grade.feedback_summary}
           </p>
-          <p className="mt-2 text-sm text-text">Score: {grade.overall_score}</p>
+          <p className="mt-2 text-sm text-text">
+            {pendingReview ? 'Provisional score' : 'Score'}:{' '}
+            {grade.overall_score}
+          </p>
         </header>
         <div className="flex flex-wrap gap-3">{retryControls}</div>
       </section>
@@ -164,10 +164,11 @@ export function TicketDebrief({
         </p>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h2 className="text-xl font-bold text-text sm:text-2xl">
-            {learnerOutcomeCopy(grade)}
+            {learnerOutcomeCopy(grade, experienceMode)}
           </h2>
           <span className="text-sm text-text">
-            Process score {result.score}
+            {pendingReview ? 'Provisional process score' : 'Process score'}{' '}
+            {result.score}
           </span>
           {result.attempts_remaining !== null ? (
             <span className="text-sm text-text-muted">

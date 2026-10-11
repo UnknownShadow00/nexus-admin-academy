@@ -1,25 +1,16 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-import { Footer } from './Footer';
-import { Header } from './Header';
-import { MainContainer } from './MainContainer';
+import { AcademyFrame } from './AcademyFrame';
 import { TicketSessionProvider } from './TicketSessionProvider';
 
 export function ApplicationShell({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const currentPath = usePathname();
-
   return (
     <TicketSessionProvider>
-      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-surface text-text">
-        <Header currentPath={currentPath} />
-        <MainContainer>{children}</MainContainer>
-        <Footer />
-      </div>
+      <AcademyFrame>{children}</AcademyFrame>
     </TicketSessionProvider>
   );
 }

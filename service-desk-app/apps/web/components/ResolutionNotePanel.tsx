@@ -12,10 +12,12 @@ const NOTE_PROMPTS =
 
 export function ResolutionNotePanel({
   experienceMode,
+  characterLimit,
   notes,
   onSubmit,
 }: {
   experienceMode: 'guided' | 'practice' | 'assessment';
+  characterLimit?: number;
   notes: readonly TicketNote[];
   onSubmit: (
     body: string,
@@ -40,7 +42,7 @@ export function ResolutionNotePanel({
       if (result.success) setBody('');
       else
         setError(
-          'Your note needs enough detail to identify what you tested and what happened.',
+          'Your note could not be saved. Keep what you tested and what happened in your own words, then try again. Your text is still here.',
         );
     } catch {
       setError(
@@ -52,7 +54,7 @@ export function ResolutionNotePanel({
   }
 
   return (
-    <Card>
+    <Card className="sd-note-panel">
       <CardHeader
         meta={`${notes.length} private`}
         title={
@@ -84,7 +86,7 @@ export function ResolutionNotePanel({
           </ul>
         ) : (
           <p className="mb-4 text-sm text-text-muted">
-            No internal notes yet. Notes stay within this practice session.
+            No internal notes yet. Document your observations in your own words.
           </p>
         )}
         <form onSubmit={handleSubmit}>
@@ -112,6 +114,10 @@ export function ResolutionNotePanel({
               ? NOTE_PROMPTS
               : 'Record the work performed and the observed outcome.'}{' '}
             At least 20 characters are required to save a note.
+            {characterLimit
+              ? ` Workstation documentation allows up to ${characterLimit.toLocaleString()} characters and is checked against case evidence.`
+              : ''}{' '}
+            Saving notes does not complete this ticket.
           </p>
           {error ? (
             <p className="mt-2 text-sm text-warning" id={errorId} role="alert">

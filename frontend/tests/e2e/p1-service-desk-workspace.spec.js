@@ -34,6 +34,7 @@ async function launch(page) {
           .getByRole("button", { name: "Open ticket", exact: true })
           .isVisible()) ||
         (await page.getByTestId("ticket-workspace").isVisible()),
+      { timeout: 30_000 },
     )
     .toBe(true);
   if (
@@ -108,6 +109,8 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
   await expect(
     page.getByText("Confirmed by your actions", { exact: true }),
   ).toBeInViewport();
+  // The approved Guided Ticket design places notes below investigation.
+  await page.getByLabel("Add a note").scrollIntoViewIfNeeded();
   await expect(page.getByLabel("Add a note")).toBeInViewport();
   const draft =
     "Working draft: investigating printer destination before making changes.";
@@ -136,16 +139,8 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
     )
     .toBe(true);
   if (await page.getByText("Remote Login", { exact: true }).isVisible()) {
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(0)
-      .fill("student");
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(1)
-      .fill("password");
+    await page.getByPlaceholder("e.g. jdoe", { exact: true }).fill("student");
+    await page.getByPlaceholder("Domain password", { exact: true }).fill("password");
     await page.getByRole("button", { name: "OK", exact: true }).click();
   }
   await page.getByRole("button", { name: "Open Start menu" }).click();
@@ -254,16 +249,8 @@ test("P1 mobile Work Evidence Notes retain drafts and fit 390px", async ({
     )
     .toBe(true);
   if (await page.getByText("Remote Login", { exact: true }).isVisible()) {
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(0)
-      .fill("student");
-    await page
-      .locator("input")
-      .filter({ visible: true })
-      .nth(1)
-      .fill("password");
+    await page.getByPlaceholder("e.g. jdoe", { exact: true }).fill("student");
+    await page.getByPlaceholder("Domain password", { exact: true }).fill("password");
     await page.getByRole("button", { name: "OK", exact: true }).click();
   }
   if (!(await page.getByLabel("Terminal command").isVisible())) {

@@ -475,9 +475,17 @@ jobs:
         working-directory: frontend
         run: npx playwright test tests/e2e/pr9b-service-desk-workflow.spec.js --workers=1 --reporter=list
 
+      - name: Approved Academy Guided Ticket integration
+        working-directory: frontend
+        run: npx playwright test tests/e2e/academy-phase4.spec.js --workers=1 --reporter=list
+
       - name: Authenticated P0 beginner integrity path
         working-directory: frontend
         run: npx playwright test tests/e2e/p0-service-desk-beginner.spec.js --reporter=list
+
+      - name: Ticket result mode and credit integrity
+        working-directory: frontend
+        run: npx playwright test tests/e2e/service-desk-result-accuracy.spec.js --workers=1 --reporter=list
 
       - name: Stop isolated local stack
         if: always()

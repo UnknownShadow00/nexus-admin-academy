@@ -69,7 +69,7 @@ export function WorkspaceTicketQueue({
   return (
     <nav
       aria-label="Ticket queue"
-      className="sticky top-4 hidden min-w-0 self-start overflow-hidden rounded-md border border-border bg-surface-raised lg:block"
+      className="sd-ticket-queue sticky top-4 hidden min-w-0 self-start overflow-hidden rounded-md border border-border bg-surface-raised lg:block"
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-sm font-bold text-text">Tickets</h2>

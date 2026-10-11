@@ -725,6 +725,55 @@ def test_non_assessment_passes_never_award_mastery_or_xp(db, experience_mode):
     assert student.total_xp == 0
 
 
+@pytest.mark.parametrize("practice_passes", [True, False])
+def test_assessment_history_and_actual_practice_preserve_server_credit(db, practice_passes):
+    """The next launch mode must not relabel the previous assessment grade."""
+    from app.routers import service_desk_bridge
+    from app.services.service_desk_progression import build_service_desk_progression
+
+    student = make_student(db, username="result-mode-credit")
+    assignment = setup_assignment(db, student, stable_key="inc2401")
+    client = make_client(service_desk.router, service_desk_bridge.router)
+    assessment_id = start(client, student, assignment).json()["id"]
+    assert db.get(ServiceDeskAttempt, assessment_id).experience_mode == "assessment"
+    unlock_avery(client, student, assessment_id)
+    close(client, student, assessment_id)
+    response = client.post(
+        f"/api/service-desk/attempts/{assessment_id}/complete",
+        headers=auth_headers(student), json={"idempotency_key": "assessment-result"},
+    )
+    assert response.status_code == 201 and response.json()["passed"] is True
+    listed = client.get("/api/service-desk/assignments", headers=auth_headers(student)).json()
+    row = next(row for row in listed if row["id"] == assignment.id)
+    assert row["experience_mode"] == "practice"
+    assert row["most_recent_attempt"]["experience_mode"] == "assessment"
+    assert row["most_recent_attempt"]["id"] == assessment_id
+    before = client.get("/api/service-desk/progress-summary", headers=auth_headers(student)).json()
+    progression_before = build_service_desk_progression(db, student)["passed_keys"]
+    ledger_before = db.query(XPLedger).filter_by(student_id=student.id).count()
+    assert before["total_xp"] == 100
+
+    practice_id = start(client, student, assignment).json()["id"]
+    assert db.get(ServiceDeskAttempt, practice_id).experience_mode == "practice"
+    if practice_passes:
+        unlock_avery(client, student, practice_id)
+    close(client, student, practice_id)
+    for _ in range(2):
+        response = client.post(
+            f"/api/service-desk/attempts/{practice_id}/complete",
+            headers=auth_headers(student), json={"idempotency_key": "practice-result"},
+        )
+        assert response.status_code in (200, 201) and response.json()["passed"] is practice_passes
+    db.refresh(student)
+    after = client.get("/api/service-desk/progress-summary", headers=auth_headers(student)).json()
+    assert after["total_xp"] == before["total_xp"]
+    assert after["tickets_completed"] == before["tickets_completed"]
+    assert db.query(XPLedger).filter_by(student_id=student.id).count() == ledger_before
+    assert build_service_desk_progression(db, student)["passed_keys"] == progression_before
+    practice = client.get(f"/api/service-desk/attempts/{practice_id}", headers=auth_headers(student)).json()
+    assert practice["experience_mode"] == "practice" and practice["grade"]["passed"] is practice_passes
+
+
 def test_mentor_review_access_cannot_mutate_student_attempt(db):
     owner = make_student(db, username="attempt-owner")
     mentor = make_student(db, username="read-only-mentor")

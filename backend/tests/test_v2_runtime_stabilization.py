@@ -771,7 +771,8 @@ def test_inactive_module_cannot_be_forged_as_v2_practical_context(db, monkeypatc
     assert response.status_code == 404
 
 
-def test_service_desk_reconciliation_uses_exact_v2_activity_with_both_modes(db, monkeypatch):
+@pytest.mark.parametrize("optional_mode", ["assessment", "practice"])
+def test_service_desk_reconciliation_uses_exact_v2_activity_with_both_modes(db, monkeypatch, optional_mode):
     student, curriculum_client = _ready(db, monkeypatch)
     module_key = "module.aplus.core1.ip_configuration"
     assessment_key = "assess.aplus.ipcfg.service_desk"
@@ -823,6 +824,9 @@ def test_service_desk_reconciliation_uses_exact_v2_activity_with_both_modes(db, 
         headers=auth_headers(student),
     )
     assert optional_started.status_code == 201
+    optional_attempt = db.get(ServiceDeskAttempt, optional_started.json()["id"])
+    optional_attempt.experience_mode = optional_mode
+    db.commit()
     assert reconcile_v2_service_desk_attempt(
         db, student_id=student.id, scenario_id=scenario.id,
         attempt_id=optional_started.json()["id"], score=100, passed=True,
