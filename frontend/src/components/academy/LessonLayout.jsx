@@ -1,17 +1,27 @@
 import { BookOpen, Check, FileText, Link2, ListChecks } from "lucide-react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AcademyScene from "./AcademyScene";
 import "./lesson.css";
 
 // Navigation describes this page; only server evidence supplies completion.
 export default function LessonLayout({ title, summary, breadcrumb, meta, steps, catalog, catalogTitle, catalogError, retryCatalog, notes, resources, practice, children, footer }) {
-  const [active, setActive] = useState(steps.find(step => step.id === "lesson-resources")?.id || steps[0]?.id);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const requested = location.hash.slice(1);
+  const active = steps.some(step => step.id === requested) ? requested : steps.find(step => step.id === "lesson-resources")?.id || steps[0]?.id;
+  useEffect(() => {
+    if (!requested || requested !== active) return;
+    const target = document.getElementById(active);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: "start" });
+  }, [active, requested, location.pathname]);
   const tabs = [["lesson-understand", "Learn", BookOpen], ...(notes ? [["lesson-notes", "My notes", FileText]] : []), ...(resources ? [["lesson-resources", "Resources", Link2]] : []), ...(practice ? [["lesson-practice", "Try it", ListChecks]] : [])];
   function follow(event, id) {
     const target = document.getElementById(id);
     if (!target) return;
-    event.preventDefault(); setActive(id);
+    event.preventDefault();
+    navigate({ pathname: location.pathname, search: location.search, hash: `#${id}` }, { preventScrollReset: true });
     target.focus({ preventScroll: true }); target.scrollIntoView({ block: "start" });
   }
   const completed = catalog?.filter(item => item.complete).length;
@@ -22,7 +32,7 @@ export default function LessonLayout({ title, summary, breadcrumb, meta, steps, 
       <header className="card lesson-heading-card">
         {breadcrumb}
         <div className="lesson-heading"><div><h1>{title}</h1>{summary ? <p className="sub">{summary}</p> : null}</div><div className="lesson-meta">{currentIndex >= 0 ? <span className="small muted">Lesson {currentIndex + 1} of {catalog.length}</span> : null}{meta}</div></div>
-        <nav className="lesson-tabs" aria-label="Lesson sections">{tabs.map(([id, label, Icon]) => <a key={id} className={`tab ${id === "lesson-understand" ? "selected" : ""}`} href={`#${id}`} onClick={event => follow(event, id)}><Icon size={17} aria-hidden="true" />{label}</a>)}</nav>
+        <nav className="lesson-tabs" aria-label="Lesson sections">{tabs.map(([id, label, Icon]) => <a key={id} className={`tab ${id === active ? "selected" : ""}`} href={`#${id}`} aria-current={active === id ? "location" : undefined} onClick={event => follow(event, id)}><Icon size={17} aria-hidden="true" />{label}</a>)}</nav>
       </header>
       {children}
       <div className="lesson-bottom">{footer}</div>

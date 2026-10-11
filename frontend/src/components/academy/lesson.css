@@ -76,6 +76,9 @@
 .academy-lesson .lesson-backdrop .scene{z-index:0}
 .academy-lesson .lesson-backdrop .scene .castle{object-position:right center}
 .academy-lesson .lesson-backdrop-fade{position:absolute;inset:0;background:linear-gradient(90deg,var(--bg),transparent 45%),linear-gradient(0deg,var(--bg),transparent 55%)}
+@media(min-width:768px) and (max-width:1279px){
+ .academy-lesson .lesson-backdrop{right:-24px}
+}
 @media(max-width:1100px) and (min-width:768px){
  .academy-lesson .learning-layout{grid-template-columns:minmax(0,1fr) 270px;gap:18px}
  .academy-lesson .lesson-heading h1{font-size:26px}

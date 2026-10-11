@@ -33,12 +33,13 @@ async function captureResults(page, prefix) {
     const toggle = page.getByRole('button', { name: 'Toggle dark mode', exact: true });
     if ((await toggle.getAttribute('aria-pressed')) !== String(mode === 'dark')) await toggle.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', mode);
-    if (process.env.NEXUS_RESULT_CAPTURE) {
+    const captureDir = process.env.NEXUS_RESULT_CAPTURE || process.env.NEXUS_PHASE5_CAPTURE;
+    if (captureDir) {
       await page.evaluate(async () => {
         await document.fonts.ready;
         await Promise.all([...document.images].map(image => image.decode().catch(() => {})));
       });
-      await page.screenshot({ path: `${process.env.NEXUS_RESULT_CAPTURE}/${prefix}-${mode}.png`, fullPage: true });
+      await page.screenshot({ path: `${captureDir}/${prefix}-${mode}.png`, fullPage: !process.env.NEXUS_PHASE5_CAPTURE });
     }
   }
 }
