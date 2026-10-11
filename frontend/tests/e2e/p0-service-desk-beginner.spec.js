@@ -92,7 +92,7 @@ test('P0 authenticated beginner: curriculum launcher, trusted work, note rejecti
   await page.getByLabel('I verified the requester has a working outcome').check();
   await page.getByRole('button', { name: 'Continue to review' }).click();
   await page.getByRole('button', { name: 'Resolve ticket', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Assessment result: PASS — module credit earned.', exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Guided practice result: PASS — check Academy for activity progress.', exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Attempts remaining:', { exact: false })).toHaveCount(0);
   await expect(page.getByText('2 attempts remaining', { exact: true })).toBeVisible();
   assertContext();
@@ -105,9 +105,9 @@ test('P0 authenticated beginner: curriculum launcher, trusted work, note rejecti
   // The ticket earns its activity credit; it cannot complete untouched lessons.
   expect(module.progress.module_complete).toBe(false);
   await page.reload();
-  await expect(page.getByText('Independent assessment', { exact: true })).toBeVisible();
+  await expect(page.locator('.sd-ticket-heading').getByText('Guided Practice', { exact: true })).toBeVisible();
   await expect(page.getByText('Ticket status').locator('.sd-badge')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Assessment result: PASS — module credit earned.', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Guided practice result: PASS — check Academy for activity progress.', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to your module', exact: true }).last().click();
   await expect(page).toHaveURL(new RegExp(`/learning-v2/modules/${moduleKey}$`));
 });

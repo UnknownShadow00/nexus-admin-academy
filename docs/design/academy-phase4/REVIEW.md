@@ -1,5 +1,35 @@
 # Academy Phase 4 — Guided Ticket integration
 
+## Result accuracy correction after review of `f3a4dfa`
+
+**Finding: misleading presentation, not a demonstrated backend credit/progression defect.** The old result screenshot contains a real, persisted **assessment** pass. After that pass, the assignment API changes its next launch mode to `practice` while retaining the completed assessment as `most_recent_attempt`. The header incorrectly used the next launch mode; the debrief also called every result an assessment and claimed module credit from a Boolean pass.
+
+The completed header and result now use the matching graded attempt's server-returned `id` and `experience_mode`. Missing/mismatched metadata produces neutral “Ticket result” wording without a credit claim. Active workspace modes, grading and evidence validation are unchanged.
+
+| Server state | Result wording / behavior |
+| --- | --- |
+| Guided pass | “Guided practice result: PASS — check Academy for activity progress.” |
+| Practice pass | “Practice result: PASS — no assessment credit or mastery XP.” |
+| Independent assessment pass | “Assessment result: PASS — check Academy for awarded credit.” |
+| Failed attempt | Mode-specific “NEEDS ANOTHER ATTEMPT — no pass for this attempt.” Does not revoke earlier credit. |
+| Server-confirmed successful escalation | Mode-specific “ESCALATED SUCCESSFULLY” with the same mode-specific credit wording; a failed grade cannot become a pass from operational escalation. |
+| Server `awaiting_review` | Mode-specific “AWAITING REVIEW — no final result yet.” Scores are explicitly provisional; no retry prompt while review is pending. |
+| Local closure not yet graded by API | “AWAITING SERVER RESULT — not yet graded.” This does not imply a mentor queue. |
+
+Authoritative rules reviewed and preserved: `complete_attempt` awards mastery XP only for an assessment pass, with ledger idempotency; Service Desk progression and progress-summary use authoritative assessment attempts. V2 module activity credit additionally requires the trusted curriculum launch and correct required guided activity. An optional practice/assessment pass cannot earn initial required V2 activity credit; subsequent failures cannot revoke already earned credit. No result wording awards XP or changes progression. The grade API has no module-credit/XP award receipt, so the UI does not claim an amount or module completion from the displayed grade.
+
+Corrected existing historical assessment screenshots: [light](ticket-result-light.png) / [dark](ticket-result-dark.png). Actual completed practice replay: [light](ticket-practice-result-light.png) / [dark](ticket-practice-result-dark.png). These four images come from the same-origin preview and real disposable API; no response mocking or synthetic grades. The six approved Guided Ticket screens, comparisons, CSS, artwork, layout and Today/Lesson/Quiz runtime are unchanged.
+
+Verification for this correction:
+
+- Service Desk web: all **196 unit tests** passed, including mode-specific pass/fail/escalation/review, mismatched attempt IDs, historical assessment header, pending-server wording, provisional scores and resolved-but-failed presentation. ESLint and TypeScript passed.
+- Backend: **155 tests passed** across attempts, assignment modes, escalation and V2 runtime stabilization; after adding a failed-practice case, **4 focused parameterized regression cases passed**. These run real router/service code with disposable in-memory SQLite, not production services. They verify assessment-to-practice history, passed/failed practice without additional XP/progression, repeat completion idempotency, and guided-only initial V2 activity credit.
+- Real browser/API: **1 end-to-end test passed** on the isolated Academy + Next + API stack. It reopens the actual assessment, starts an optional practice attempt through the authenticated API, performs all real simulator diagnostics, documentation and closure, reloads its server grade, and verifies XP and completed-ticket totals remain unchanged both after practice and after rendering results. Existing beginner test retains its server V2-credit assertions and now expects the actual completed guided mode after reload. CI runs the new replay after the existing assessment workflow.
+- Pending review is covered by UI fixtures; this pass does not introduce a review queue or claim a real mentor-reviewed attempt was tested. Production behavior is untested and production is untouched.
+- Audit: Academy production npm dependencies and backend requirements report no known vulnerabilities. The unchanged Service Desk production lockfile reports two moderate Next.js SSG/ISR advisories, no high/critical; no dependency upgrade is included.
+
+This correction leaves trusted backend runtime, authentication, ownership, prerequisites, scenarios, evidence, XP/progression and retry limits untouched. No migrations, deployment, merge, Phase 5 or deferred grading changes. Current-head CI results are tracked in PR #68; the earlier full CI results below apply to `f3a4dfa`.
+
 ## Scope and lineage
 
 - Base: verified PR #67 head `ec294c6e22d8a6f9345528b1caa64bd43d391051`.

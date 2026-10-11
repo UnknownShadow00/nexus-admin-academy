@@ -4,6 +4,7 @@ import type { Ticket } from '@service-desk/shared';
 import { PriorityBadge } from '@service-desk/ui';
 import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
+import React from 'react';
 
 import type { NexusAssignment } from '../lib/nexus-service-desk-client';
 import { workspaceHref } from '../lib/workspace-navigation';
@@ -32,13 +33,18 @@ export function TicketContextBar({
   assignment,
   ticket,
   completed = false,
+  resultExperienceMode,
   launchQuery = '',
 }: {
   assignment?: NexusAssignment;
   ticket: Ticket;
   completed?: boolean;
+  resultExperienceMode?: ExperienceMode;
   launchQuery?: string;
 }) {
+  const displayMode = completed
+    ? resultExperienceMode
+    : assignment?.experience_mode;
   const remaining = assignment
     ? attemptsRemaining(
         assignment.maximum_attempts,
@@ -70,9 +76,9 @@ export function TicketContextBar({
           <span className="inline-flex items-center gap-1 text-xs text-text-muted">
             Ticket status <TicketStatusBadge status={ticket.status} />
           </span>
-          {assignment ? (
+          {displayMode ? (
             <span className="rounded-sm border border-border bg-surface-raised px-2 py-1 text-xs font-semibold text-text">
-              {experienceModeLabel(assignment.experience_mode)}
+              {experienceModeLabel(displayMode)}
             </span>
           ) : null}
           {!completed && remaining !== null ? (
@@ -88,17 +94,17 @@ export function TicketContextBar({
           <span>{ticket.requester.name}</span>
           <span className="font-mono">{ticket.device.assetTag}</span>
         </div>
-        {assignment?.experience_mode === 'guided' ? (
+        {displayMode === 'guided' ? (
           <p className="mt-2 hidden max-w-3xl text-xs text-text-muted sm:block">
             Guided practice. This case may return later as an independent
             assessment.
           </p>
-        ) : assignment?.experience_mode === 'practice' ? (
+        ) : displayMode === 'practice' ? (
           <p className="mt-2 max-w-3xl text-xs text-text-muted">
             Independent replay. Practice does not replace a required assessment
             pass.
           </p>
-        ) : assignment?.guided_completed ? (
+        ) : !completed && assignment?.guided_completed ? (
           <p className="mt-2 max-w-3xl text-xs text-text-muted">
             You practiced this case earlier. Complete it independently to
             demonstrate mastery.

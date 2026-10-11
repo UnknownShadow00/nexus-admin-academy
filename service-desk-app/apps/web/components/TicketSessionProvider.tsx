@@ -118,6 +118,8 @@ import {
 } from '../lib/nexus-sync-outbox';
 import { captureV2LaunchContextForTicket } from '../lib/workspace-navigation';
 
+import type { ResultAttempt } from '../lib/ticket-result-presentation';
+
 interface TicketSessionContextValue {
   addNote: (ticketId: string, body: string) => void;
   assignTicket: (ticketId: string) => void;
@@ -143,6 +145,7 @@ interface TicketSessionContextValue {
   awaitingGradeByTicket: Readonly<Record<string, boolean>>;
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
   authoritativeGradeByTicket: Readonly<Record<string, NexusGrade>>;
+  serverAttemptByTicket: Readonly<Record<string, ResultAttempt>>;
   workspaceViewByTicket: Readonly<Record<string, NexusWorkspaceView>>;
   progression: NexusServiceDeskProgression | null;
   tickets: readonly Ticket[];
@@ -1450,6 +1453,9 @@ export function TicketSessionProvider({
   const [authoritativeGradeByTicket, setAuthoritativeGradeByTicket] = useState<
     Readonly<Record<string, NexusGrade>>
   >({});
+  const [serverAttemptByTicket, setServerAttemptByTicket] = useState<
+    Readonly<Record<string, ResultAttempt>>
+  >({});
   const [runtimeTickets, setRuntimeTickets] =
     useState<readonly Ticket[]>(TICKET_FIXTURES);
   const [runtimeAssignments, setRuntimeAssignments] = useState<
@@ -1529,6 +1535,7 @@ export function TicketSessionProvider({
 
     async function hydrateAttempt() {
       setAuthoritativeGradeByTicket({});
+      setServerAttemptByTicket({});
       let restored: Attempt | null = null;
 
       try {
@@ -1649,6 +1656,15 @@ export function TicketSessionProvider({
             return;
           }
 
+          if (nexusAttempt) {
+            setServerAttemptByTicket((current) => ({
+              ...current,
+              [normalizeTicketKey(assignment.scenario.stable_key)]: {
+                id: nexusAttempt.id,
+                experience_mode: nexusAttempt.experience_mode,
+              },
+            }));
+          }
           const currentState = nexusAttempt?.current_state;
           if (nexusAttempt?.workspace_view) {
             const ticketId = normalizeTicketKey(assignment.scenario.stable_key);
@@ -1723,6 +1739,15 @@ export function TicketSessionProvider({
           const completedAttempt = await getAttempt(recentAttempt.id);
           if (!active) {
             return;
+          }
+          if (completedAttempt) {
+            setServerAttemptByTicket((current) => ({
+              ...current,
+              [normalizeTicketKey(assignment.scenario.stable_key)]: {
+                id: completedAttempt.id,
+                experience_mode: completedAttempt.experience_mode,
+              },
+            }));
           }
           if (completedAttempt?.grade) {
             completedGrades[
@@ -1844,6 +1869,15 @@ export function TicketSessionProvider({
         if (!accepted)
           throw new Error('Nexus did not confirm the saved action.');
         const refreshedAttempt = await getAttempt(attemptId);
+        if (refreshedAttempt) {
+          setServerAttemptByTicket((current) => ({
+            ...current,
+            [item.ticketId]: {
+              id: refreshedAttempt.id,
+              experience_mode: refreshedAttempt.experience_mode,
+            },
+          }));
+        }
         // Mirror only the server-issued identity; tools never create attempts.
         nexusTicketMappingsRef.current[item.ticketId] = {
           assignmentId: item.assignmentId,
@@ -2286,6 +2320,18 @@ export function TicketSessionProvider({
         return false;
       }
       const refreshed = await getAttempt(started.id);
+      setServerAttemptByTicket((current) => {
+        const next = { ...current };
+        if (refreshed) {
+          next[ticketId] = {
+            id: refreshed.id,
+            experience_mode: refreshed.experience_mode,
+          };
+        } else {
+          delete next[ticketId];
+        }
+        return next;
+      });
 
       nexusTicketMappingsRef.current = {
         ...nexusTicketMappingsRef.current,
@@ -2327,6 +2373,7 @@ export function TicketSessionProvider({
       assignmentByTicket: runtimeAssignments,
       getAttemptIdentity: (ticketId) => nexusTicketMappingsRef.current[ticketId],
       authoritativeGradeByTicket,
+      serverAttemptByTicket,
       workspaceViewByTicket,
       addNote: (ticketId, body) => {
         dispatchAction({
@@ -2409,6 +2456,7 @@ export function TicketSessionProvider({
     }),
     [
       authoritativeGradeByTicket,
+      serverAttemptByTicket,
       attempt.grades,
       flushNexusOutbox,
       dispatchAction,

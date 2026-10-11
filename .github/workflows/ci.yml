@@ -483,6 +483,10 @@ jobs:
         working-directory: frontend
         run: npx playwright test tests/e2e/p0-service-desk-beginner.spec.js --reporter=list
 
+      - name: Ticket result mode and credit integrity
+        working-directory: frontend
+        run: npx playwright test tests/e2e/service-desk-result-accuracy.spec.js --workers=1 --reporter=list
+
       - name: Stop isolated local stack
         if: always()
         run: bash scripts/e2e/stop_local_stack.sh

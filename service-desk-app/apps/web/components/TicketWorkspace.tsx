@@ -1,5 +1,10 @@
 'use client';
 
+import {
+  pendingResultCopy,
+  resultExperienceMode,
+} from '../lib/ticket-result-presentation';
+
 import { getToolBySlug, type ToolSlug } from '@service-desk/shared';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@service-desk/ui';
 import Link from 'next/link';
@@ -50,6 +55,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const {
     assignmentByTicket,
     authoritativeGradeByTicket,
+    serverAttemptByTicket,
     awaitingGradeByTicket,
     getTicket,
     recordHintReveal,
@@ -249,6 +255,10 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   );
 
   if (authoritativeGrade) {
+    const gradedMode = resultExperienceMode(
+      authoritativeGrade,
+      serverAttemptByTicket[ticketId],
+    );
     return (
       <div className="sd-ticket-debrief grid min-w-0 gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)]">
         {ticketQueue}
@@ -256,12 +266,14 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
           <TicketContextBar
             assignment={assignment}
             completed
+            resultExperienceMode={gradedMode}
             launchQuery={searchParams.toString()}
             ticket={ticket}
           />
           <TicketDebrief
             assignment={assignment}
             grade={authoritativeGrade}
+            experienceMode={gradedMode}
             onRetry={startNextAttempt}
             ticket={ticket}
           />
@@ -287,7 +299,9 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
             className="rounded-md border border-border p-4 text-lg font-bold"
             role="status"
           >
-            Assessment result: AWAITING REVIEW — module credit pending.
+            {pendingResultCopy(
+              serverAttemptByTicket[ticketId]?.experience_mode,
+            )}
           </p>
         ) : null}
         {workspaceView ? (
