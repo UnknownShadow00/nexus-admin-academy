@@ -3,7 +3,7 @@
 import type { TicketNote } from '@service-desk/shared';
 import { Button, Card, CardHeader, Textarea } from '@service-desk/ui';
 import { IconNote, IconPlus } from '@tabler/icons-react';
-import React, { useId, useState, type FormEvent } from 'react';
+import React, { useId, useRef, useState, type FormEvent } from 'react';
 
 import { formatActivityTimestamp } from './ticket-labels';
 
@@ -26,6 +26,7 @@ export function ResolutionNotePanel({
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
   const showPrompts = experienceMode !== 'assessment';
   const fieldId = useId();
   const promptId = `${fieldId}-prompt`;
@@ -34,7 +35,8 @@ export function ResolutionNotePanel({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const note = body.trim();
-    if (note.length < 20) return;
+    if (submitLock.current || note.length < 20) return;
+    submitLock.current = true;
     setSubmitting(true);
     setError('');
     try {
@@ -49,6 +51,7 @@ export function ResolutionNotePanel({
         'Your note could not be saved. Your text is still here; please try again.',
       );
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   }

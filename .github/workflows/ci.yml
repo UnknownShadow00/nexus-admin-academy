@@ -39,6 +39,10 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historical migration regressions archive pinned earlier sources.
+          # A shallow checkout silently skips those compatibility checks.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -86,6 +90,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Seed convergence tests compare actual historical source trees.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -478,6 +485,10 @@ jobs:
       - name: Approved Academy Guided Ticket integration
         working-directory: frontend
         run: npx playwright test tests/e2e/academy-phase4.spec.js --workers=1 --reporter=list
+
+      - name: Phase 5 learner and Service Desk responsive regression
+        working-directory: frontend
+        run: npx playwright test tests/e2e/academy-phase5.spec.js --workers=1 --reporter=list
 
       - name: Authenticated P0 beginner integrity path
         working-directory: frontend

@@ -240,6 +240,7 @@
 .academy .streak-longest{font-size:12px;color:var(--mute);text-align:right}
 .academy .path{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
 .academy .stage{color:var(--ink);text-decoration:none;align-items:flex-start}
+.academy .stage>span:last-child{min-width:0;overflow-wrap:anywhere}
 .academy .stage[aria-disabled]{color:var(--sub)}
 .academy .stage-number{font-size:12px}
 .academy .today-follow-up{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:none;padding:22px}

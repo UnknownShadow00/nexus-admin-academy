@@ -89,4 +89,52 @@ describe('P0 Finding D — rejected Resolution Note feedback', () => {
       'could not be saved',
     );
   });
+
+  it('sends one note when duplicate submit events arrive before rendering', async () => {
+    let finish!: (result: { success: boolean }) => void;
+    const onSubmit = vi.fn(
+      () =>
+        new Promise<{ success: boolean }>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await act(async () =>
+      root.render(
+        <ResolutionNotePanel
+          experienceMode="practice"
+          notes={[]}
+          onSubmit={onSubmit}
+        />,
+      ),
+    );
+    const field = container.querySelector('textarea')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        'value',
+      )?.set?.call(field, NOTE);
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      for (let i = 0; i < 2; i++)
+        container
+          .querySelector('form')!
+          .dispatchEvent(
+            new SubmitEvent('submit', { bubbles: true, cancelable: true }),
+          );
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ success: false }));
+    expect(field.value).toBe(NOTE);
+    await act(async () =>
+      container
+        .querySelector('form')!
+        .dispatchEvent(
+          new SubmitEvent('submit', { bubbles: true, cancelable: true }),
+        ),
+    );
+    expect(onSubmit).toHaveBeenCalledTimes(2); // A failed save can be retried.
+    await act(async () => finish({ success: true }));
+    expect(field.value).toBe('');
+  });
 });

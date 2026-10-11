@@ -94,7 +94,8 @@ test("real legacy quiz keeps randomization/drafts, saves/reviews result and navi
   await page.locator(".choice").first().click(); await page.getByRole("button", { name: "Next", exact: true }).click();
   const title = await page.locator(".question-title h2").textContent(); await page.reload(); await expect(page.locator(".question-title h2")).toHaveText(title);
   const buttons = page.locator(".question-grid button"), count = await buttons.count();
-  for (let i = 0; i < count; i++) { await buttons.nth(i).click(); await page.locator(".choice").first().click(); }
+  for (let i = 0; i < count; i++) { await buttons.nth(i).click(); await page.locator(".choice input").first().check(); }
+  await expect(page.getByRole("progressbar", { name: "Questions answered" })).toHaveAttribute("aria-valuenow", String(count));
   await page.getByRole("button", { name: "Submit Quiz", exact: true }).click(); await expect(page.getByRole("heading", { name: "Answer Review", exact: true })).toBeVisible();
   await capture(page, "legacy-quiz-result");
   await page.getByRole("link", { name: "Continue Learning", exact: true }).click(); await expect(page.locator(".today-dashboard")).toBeVisible(); await page.goBack(); await expect(page.locator(".quiz-header")).toBeVisible();

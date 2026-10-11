@@ -3,6 +3,7 @@
 import {
   pendingResultCopy,
   resultExperienceMode,
+  resultTicketStatus,
 } from '../lib/ticket-result-presentation';
 
 import { getToolBySlug, type ToolSlug } from '@service-desk/shared';
@@ -267,6 +268,11 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
             assignment={assignment}
             completed
             resultExperienceMode={gradedMode}
+            resultStatus={resultTicketStatus(
+              authoritativeGrade,
+              serverAttemptByTicket[ticketId],
+              ticketId,
+            )}
             launchQuery={searchParams.toString()}
             ticket={ticket}
           />

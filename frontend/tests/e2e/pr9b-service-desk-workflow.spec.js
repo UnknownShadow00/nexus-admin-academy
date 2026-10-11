@@ -116,6 +116,7 @@ test('independent INC2501 completes all six stages with server PASS and separate
   await dialog.getByRole('button', { name: 'Resolve ticket' }).click();
   await expect(page.getByRole('heading', { name: /Assessment result: PASS/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText('Resolved');
+  let completedAttempt;
   await expect.poll(async () => {
     const response = await page.request.get('/api/service-desk/assignments');
     if (!response.ok()) return false;
@@ -131,23 +132,25 @@ test('independent INC2501 completes all six stages with server PASS and separate
     );
     if (!attempt.ok()) return false;
     const result = await attempt.json();
+    completedAttempt = result;
     return result.experience_mode === 'assessment' && result.grade?.passed === true;
   }, { timeout: 30_000 }).toBe(true);
+  expect(completedAttempt.current_state.nexus_service_desk_attempt.ticketOverlays.INC2501.status).toBe('resolved');
   await captureResponsive(page, 'independent-pass');
 
   await page.reload();
   await expect(page.getByRole('heading', { name: /Assessment result: PASS/ })).toBeVisible();
-  // A newer active ticket snapshot may restore this case's current operational
-  // status to Open; the completed server attempt still owns the PASS result.
-  await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText(/^(Open|Resolved)$/);
+  // Historical result and operational status both come from this saved attempt,
+  // independently of another active case's snapshot or the next replay's mode.
+  await expect(page.getByText('Ticket status').locator('.sd-badge')).toHaveText('Resolved');
 
   const revisitContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const revisit = await revisitContext.newPage();
   await login(revisit);
   await revisit.goto('/service-desk/tickets/INC2501');
   await expect(revisit.getByRole('heading', { name: /Assessment result: PASS/ })).toBeVisible();
-  await expect(revisit.getByText('Ticket status').locator('.sd-badge')).toHaveText('Open');
-  await capture(revisit, 'independent-historical-pass-open-1440-light');
+  await expect(revisit.getByText('Ticket status').locator('.sd-badge')).toHaveText('Resolved');
+  await capture(revisit, 'independent-historical-pass-resolved-1440-light');
   await revisitContext.close();
 });
 

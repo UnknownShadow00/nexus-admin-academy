@@ -1,6 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { getFixtureTicket } from '@service-desk/shared';
+import { getFixtureTicket, TicketStatus } from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 import { TicketContextBar } from './TicketContextBar';
 import type { NexusAssignment } from '../lib/nexus-service-desk-client';
@@ -60,5 +60,26 @@ describe('result header uses completed attempt mode', () => {
         <TicketContextBar assignment={assignment} ticket={ticket} />,
       ),
     ).toContain('Independent replay');
+  });
+  it('uses stored result status rather than the initial scenario status after reload', () => {
+    const markup = renderToStaticMarkup(
+      <TicketContextBar
+        ticket={{ ...ticket, status: TicketStatus.Open }}
+        completed
+        resultStatus={TicketStatus.Resolved}
+      />,
+    );
+    expect(markup).toContain('>Resolved<');
+    expect(markup).not.toContain('>Open<');
+    expect(
+      renderToStaticMarkup(<TicketContextBar ticket={ticket} completed />),
+    ).not.toContain('Ticket status');
+    expect(
+      renderToStaticMarkup(
+        <TicketContextBar
+          ticket={{ ...ticket, status: TicketStatus.Pending }}
+        />,
+      ),
+    ).toContain('>Pending<');
   });
 });

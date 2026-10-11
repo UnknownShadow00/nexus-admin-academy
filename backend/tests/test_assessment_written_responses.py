@@ -82,3 +82,47 @@ def test_response_limits_are_validation_not_hidden_keywords(db, monkeypatch, ans
     response = client.post(path + "/submit", json={"attempt_id": data["attempt"]["id"], "answers": {str(short["id"]): answer}}, headers=auth_headers(student))
     assert response.status_code == 422
     assert db.query(PendingGrade).count() == 0
+
+
+def test_disabled_worker_preserves_pending_answer_until_authorized_reconciliation(db, monkeypatch):
+    """Real assessment/admin handlers and worker, with no external grading provider."""
+    from app.routers.admin_grading import router as admin_router
+    from app.services.grading_queue import run_pending_batch
+
+    monkeypatch.setenv("AI_GRADING_ENABLED", "false")
+    monkeypatch.setenv("ADMIN_API_KEY", "disposable-worker-regression-key")
+    student, _, path, data, short = assessment(db, monkeypatch)
+    client = make_client(router, admin_router)
+    original = "  I would examine how the platform connects the components.\nThen verify those connections.  "
+    attempt_id = data["attempt"]["id"]
+    payload = {"attempt_id": attempt_id, "answers": {str(short["id"]): original}}
+    before_xp = db.query(XPLedger).count()
+    submitted = client.post(path + "/submit", json=payload, headers=auth_headers(student))
+    assert submitted.status_code == 200
+    assert submitted.json()["data"]["grading_state"] == "pending"
+
+    # The disabled worker can find the durable job, but cannot invent a grade.
+    assert run_pending_batch(db) == {"claimed": 1, "needs_review": 1}
+    assert run_pending_batch(db) == {"claimed": 0}
+    db.expire_all()
+    row = db.query(V2AssessmentAttemptQuestion).filter_by(attempt_id=attempt_id, question_id=short["id"]).one()
+    job = db.get(PendingGrade, row.pending_grade_id)
+    assert job.status == "needs_review" and job.resolved_passed is None
+    assert row.submitted_answer == job.submitted_answer == original
+    result = client.get(path, headers=auth_headers(student)).json()["data"]["result"]
+    assert result["grading_state"] == "pending" and result["score"] is None
+    assert all(not item["correct_answer"] and not item["explanation"] for item in result["results"])
+    assert db.query(XPLedger).count() == before_xp
+
+    override_path = f"/api/admin/grading/{job.id}/override"
+    decision = {"reason": "Verified the original conceptual explanation", "score": 1.0, "passed": True}
+    assert client.post(override_path, json=decision, headers=auth_headers(student)).status_code == 403
+    assert client.get("/api/admin/grading/queue", headers=auth_headers(student)).status_code == 403
+    admin = {"X-Admin-Key": "disposable-worker-regression-key"}
+    queue = client.get("/api/admin/grading/queue", headers=admin).json()["data"]
+    assert any(item["pending_grade_id"] == job.id for item in queue)
+    assert client.post(override_path, json=decision, headers=admin).status_code == 200
+    db.expire_all()
+    assert db.get(V2AssessmentAttempt, attempt_id).grading_state == "graded"
+    assert db.get(PendingGrade, job.id).submitted_answer == original
+    assert db.query(XPLedger).count() == before_xp  # Other unanswered questions still prevent a pass.

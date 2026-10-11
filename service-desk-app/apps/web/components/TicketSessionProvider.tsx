@@ -1662,6 +1662,7 @@ export function TicketSessionProvider({
               [normalizeTicketKey(assignment.scenario.stable_key)]: {
                 id: nexusAttempt.id,
                 experience_mode: nexusAttempt.experience_mode,
+                current_state: nexusAttempt.current_state,
               },
             }));
           }
@@ -1746,6 +1747,7 @@ export function TicketSessionProvider({
               [normalizeTicketKey(assignment.scenario.stable_key)]: {
                 id: completedAttempt.id,
                 experience_mode: completedAttempt.experience_mode,
+                current_state: completedAttempt.current_state,
               },
             }));
           }
@@ -1875,6 +1877,7 @@ export function TicketSessionProvider({
             [item.ticketId]: {
               id: refreshedAttempt.id,
               experience_mode: refreshedAttempt.experience_mode,
+              current_state: refreshedAttempt.current_state,
             },
           }));
         }

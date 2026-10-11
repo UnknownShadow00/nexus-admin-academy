@@ -4,6 +4,7 @@ import {
   learnerOutcomeCopy,
   pendingResultCopy,
   resultExperienceMode,
+  resultTicketStatus,
 } from './ticket-result-presentation';
 
 const grade: NexusGrade = {
@@ -95,5 +96,92 @@ describe('server-owned ticket result presentation', () => {
         'assessment',
       ),
     ).not.toContain('credit confirmed');
+  });
+
+  it.each(['open', 'in-progress', 'pending', 'resolved', 'closed'] as const)(
+    'restores stored %s independently of pass, fail or pending review',
+    (status) => {
+      const attempt = {
+        id: 12,
+        experience_mode: 'practice' as const,
+        current_state: {
+          nexus_service_desk_attempt: {
+            ticketOverlays: {
+              INC2501: { status },
+              INC2504: { status: 'open' },
+            },
+          },
+        },
+      };
+      for (const passed of [true, false]) {
+        expect(
+          resultTicketStatus({ ...grade, passed }, attempt, 'INC2501'),
+        ).toBe(status);
+        expect(
+          resultTicketStatus(
+            { ...grade, passed, learner_outcome: 'awaiting_review' },
+            attempt,
+            'INC2501',
+          ),
+        ).toBe(status);
+      }
+      expect(resultTicketStatus(grade, attempt, 'INC2504')).toBe('open');
+      expect(resultTicketStatus(grade, attempt, 'INC9999')).toBeUndefined();
+    },
+  );
+
+  it('does not guess status from grades, a different attempt or malformed snapshots', () => {
+    expect(resultTicketStatus(grade, undefined, 'INC2501')).toBeUndefined();
+    expect(
+      resultTicketStatus(
+        grade,
+        { id: 12, experience_mode: 'assessment' },
+        'INC2501',
+      ),
+    ).toBeUndefined();
+    for (const current_state of [
+      {},
+      { nexus_service_desk_attempt: null },
+      {
+        nexus_service_desk_attempt: {
+          ticketOverlays: { INC2501: { status: 'PASS' } },
+        },
+      },
+      {
+        nexus_service_desk_attempt: {
+          ticketOverlays: { INC2501: { status: {} } },
+        },
+      },
+    ]) {
+      expect(
+        resultTicketStatus(
+          grade,
+          { id: 12, experience_mode: 'assessment', current_state },
+          'INC2501',
+        ),
+      ).toBeUndefined();
+    }
+    expect(
+      resultTicketStatus(
+        grade,
+        {
+          id: 13,
+          experience_mode: 'practice',
+          current_state: { status: 'resolved' },
+        },
+        'INC2501',
+      ),
+    ).toBeUndefined();
+    expect(
+      resultTicketStatus(
+        grade,
+        {
+          id: 12,
+          experience_mode: 'assessment',
+          current_state: { status: 'pending' },
+        },
+        'INC2501',
+      ),
+    ).toBe('pending');
   });
 });
